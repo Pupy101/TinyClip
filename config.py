@@ -7,6 +7,7 @@ from utils import utils
 
 
 class Config:
+    TYPE_USING = 'train'  # or 'eval'
 
     DATASET_PARAMS: Dict[str, Union[str, int]] = {
         'image_dir': './train_path',
