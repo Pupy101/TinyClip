@@ -53,6 +53,9 @@ class TextAndImage(Dataset):
             'text': tokenized_text
         }
 
+    def __len__(self):
+        return self.csv.shape[0]
+
 
 def create_dataset(
         image_dir: str,
@@ -81,18 +84,22 @@ def create_dataset(
     }
     with open(dir_to_caption_file) as f:
         for line in f:
-            img, description = re.findall(r'^([\w]+.jpg)#[0-9]+\t(.+.)$', line.strip())
+            img, description = re.findall(r'^([\w]+.jpg)#[0-9]+\t(.+.)$', line.strip())[0]
             img_path = join_path(image_dir, img)
-            if img_path in train_images:
-                if img_path in train_df:
-                    train_df[img_path].append(description)
+            if img in train_images:
+                if img_path in train_df['image']:
+                    index = train_df['image'].index(img_path)
+                    train_df['text'][index].append(description)
                 else:
-                    train_df[img_path] = [description]
-            elif img_path in valid_images:
+                    train_df['image'].append(img_path)
+                    train_df['text'].append([description])
+            elif img in valid_images:
                 if img_path in valid_df:
-                    valid_df[img_path].append(description)
+                    index = valid_df['image'].index(img_path)
+                    valid_df['text'][index].append(description)
                 else:
-                    valid_df[img_path] = [description]
+                    valid_df['image'].append(img_path)
+                    valid_df['text'].append([description])
     train_csv = pd.DataFrame(train_df)
     valid_csv = pd.DataFrame(valid_df)
     return (
