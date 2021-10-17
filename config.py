@@ -30,6 +30,8 @@ class Config:
 
     MODEL = clip
 
+    PATH_TO_SAVE_MODEL_WEIGHTS = './train_result'
+
     IND_REQUIRES_GRAD_IMAGE_NET: Union[int, None] = -40
     IND_REQUIRES_GRAD_TEXT_NET: Union[int, None] = -40
 
