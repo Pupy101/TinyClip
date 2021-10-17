@@ -67,15 +67,15 @@ def create_dataset(
     with open(dir_to_train_file) as f:
         for line in f:
             train_images.add(line.strip())
-    test_images = set()
+    valid_images = set()
     with open(dir_to_valid_file) as f:
         for line in f:
-            test_images.add(line.strip())
+            valid_images.add(line.strip())
     train_df = {
         'text': [],
         'image': []
     }
-    test_df = {
+    valid_df = {
         'text': [],
         'image': []
     }
@@ -88,13 +88,13 @@ def create_dataset(
                     train_df[img_path].append(description)
                 else:
                     train_df[img_path] = [description]
-            else:
-                if img_path in test_df:
-                    test_df[img_path].append(description)
+            elif img_path in valid_images:
+                if img_path in valid_df:
+                    valid_df[img_path].append(description)
                 else:
-                    test_df[img_path] = [description]
+                    valid_df[img_path] = [description]
     train_csv = pd.DataFrame(train_df)
-    test_csv = pd.DataFrame(test_df)
+    valid_csv = pd.DataFrame(valid_df)
     return (
         TextAndImage(
             csv=train_csv,
@@ -103,9 +103,9 @@ def create_dataset(
             transform=transform['train']
         ),
         TextAndImage(
-            csv=test_csv,
+            csv=valid_csv,
             tokenizer=tokenizer,
             max_size_seq_len=max_size_seq_len,
-            transform=transform['test']
+            transform=transform['valid']
         )
     )

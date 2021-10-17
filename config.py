@@ -1,9 +1,11 @@
 from typing import Dict, Union
 
 from torch import optim, nn
-from model import clip
+from transformers import DistilBertTokenizer
 
-from utils import utils
+from model import clip
+from utils import utils, augmentations
+
 
 
 class Config:
@@ -14,7 +16,12 @@ class Config:
         'dir_to_train_file': './dir_to_train_file',
         'dir_to_valid_file': './dir_to_valid_file',
         'dir_to_caption_file': './dir_to_caption_file',
-        'max_size_seq_len': 50
+        'max_size_seq_len': 50,
+        'tokenizer': DistilBertTokenizer.from_pretrained('distilbert-base-uncased'),
+        'transform': {
+            'train': augmentations.train_transform,
+            'valid': augmentations.valid_transform
+        }
     }
 
     LOADER_PARAMS: Dict[str, Dict[str, Union[bool, int]]] = {
