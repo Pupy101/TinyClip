@@ -47,3 +47,5 @@ class Config:
     }
 
     CRITERION = nn.CrossEntropyLoss()
+
+    N_EPOCH = 10
