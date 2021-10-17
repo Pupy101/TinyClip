@@ -1,34 +1,14 @@
-from typing import Callable, Union
+from typing import Callable, Union, Tuple
 
 import torch
 
 from torch import nn
 from torchvision import models
-from transformers import DistilBertTokenizer, DistilBertForMaskedLM
-
-
-class EmbeddingModel(nn.Module):
-
-    def __init__(
-            self,
-            model: nn.Module
-    ):
-        """
-        model - torch model with embedding at output
-        """
-        super().__init__()
-        self.model = model
-    
-    def forward(
-        self,
-        input_tensor: Union[torch.Tensor, ]
-    ) -> torch.Tensor:
-        hidden = self.model(input_tensor)
-        return hidden
+from transformers import DistilBertForSequenceClassification
 
 
 class CosineSimilarity2DVectors(nn.Module):
-    
+
     def __init__(
         self,
         eps: float = 1e-6
@@ -38,9 +18,9 @@ class CosineSimilarity2DVectors(nn.Module):
     
     def forward(
         self,
-        first_vector: torch.Tensor,
-        second_vector: torch.Tensor
+        vectors: Tuple[torch.Tensor],
     ) -> torch.Tensor:
+        first_vector, second_vector = vectors
         assert len(first_vector.shape) == len(second_vector.shape) == 2, 'Vectors dimesions must be 2'
         first_l2_norm = torch.linalg.norm(first_vector, dim=1).unsqueeze(1)
         second_l2_norm = torch.linalg.norm(second_vector, dim=1).unsqueeze(0)
@@ -68,28 +48,29 @@ class CLIP(nn.Module):
         output_dim_text - dim of output text_embedding
         overall_dim - overall dimesion
         """
+        super().__init__()
         if overall_dim is None:
             overall_dim = max(output_dim_img, output_dim_text)
 
         self.model_img_emb = nn.Sequential(
             image_embedding,
             nn.ReLU(),
-            nn.Linear(output_dim_img, overall_dim)
+            nn.Linear(in_features=output_dim_img, out_features=overall_dim)
         )
         
         self.model_text_emb = nn.Sequential(
             text_embedding,
             nn.ReLU(),
-            nn.Linear(output_dim_text, overall_dim)
+            nn.Linear(in_features=output_dim_text, out_features=overall_dim)
         )
 
-        self.cosine_simularity = nn.CosineSimilarity2DVectors()
+        self.cosine_simularity = CosineSimilarity2DVectors()
     
     def forward(
         self,
-        img: torch.Tensor,
-        text: torch.Tensor
+        vectors: Tuple[torch.Tensor],
     ) -> torch.Tensor:
+        img, text = vectors
         img_emb = self.model_img_emb(img)
         text_emb = self.model_text_emb(text)
         output = self.cosine_simularity(img_emb, text_emb)
@@ -97,10 +78,10 @@ class CLIP(nn.Module):
     
     def inference(
         self,
-        img: torch.Tensor,
-        text_classes: torch.Tensor,
-        is_rewrite_classes: bool
+        input_tensor: Tuple[torch.Tensor],
+        is_rewrite_classes: bool = False
     ) -> torch.Tensor:
+        img, text_classes = input_tensor
         if hasattr(self, 'classes') and not is_rewrite_classes:
             classes = self.classes
         else:
@@ -110,3 +91,28 @@ class CLIP(nn.Module):
         output = self.cosine_simularity(img_emb, classes)
         return torch.argmax(output, dim=1)
         
+
+mobilenet_v3 = models.mobilenet_v3_small(pretrained=True)
+mobilenet_v3.classifier = nn.Identity()
+img_dim_size = 576
+
+class DistilBertForCLIP(nn.Module):
+
+    def __init__(self):
+        super().__init__()
+        self.bert = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased')
+        self.bert.classifier = nn.Identity()
+    
+    def forward(self, x):
+        return self.bert(x)['logits']
+
+distilbert = DistilBertForCLIP()
+text_dim_size = 768
+
+clip = CLIP(
+    image_embedding=mobilenet_v3,
+    text_embedding=distilbert,
+    output_dim_img=img_dim_size,
+    output_dim_text=text_dim_size,
+    overall_dim=512
+)
