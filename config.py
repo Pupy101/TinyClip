@@ -7,8 +7,13 @@ from utils import utils
 
 
 class Config:
-    DATASET_PATH: Dict[str, Union[None, str]] = {
-        'train': './train_path'
+
+    DATASET_PARAMS: Dict[str, Union[str, int]] = {
+        'image_dir': './train_path',
+        'dir_to_train_file': './dir_to_train_file',
+        'dir_to_valid_file': './dir_to_valid_file',
+        'dir_to_caption_file': './dir_to_caption_file',
+        'max_size_seq_len': 50
     }
 
     LOADER_PARAMS: Dict[str, Dict[str, Union[bool, int]]] = {
@@ -40,3 +45,5 @@ class Config:
         ],
         'lr': 3e-4,
     }
+
+    CRITERION = nn.CrossEntropyLoss()
