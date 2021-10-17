@@ -1,5 +1,6 @@
 import re
 
+from random import randint
 from typing import Callable
 from os.path import join as join_path
 
@@ -32,7 +33,9 @@ class TextAndImage(Dataset):
         if self.transform is not None:
             img = self.transform(image=img)['image']
 
-        text = self.csv['text'][item]
+        texts = self.csv['text'][item]
+        lenght_of_texts = len(texts)
+        text = texts[randint(0, lenght_of_texts - 1)]
         tokenized_text = self.tokenizer(
             text,
             return_tensors="pt"
