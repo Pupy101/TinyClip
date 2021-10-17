@@ -10,15 +10,15 @@ from transformers import DistilBertForSequenceClassification
 class CosineSimilarity2DVectors(nn.Module):
 
     def __init__(
-        self,
-        eps: float = 1e-6
+            self,
+            eps: float = 1e-6
     ):
         super().__init__()
         self.eps = eps
-    
+
     def forward(
-        self,
-        vectors: Tuple[torch.Tensor],
+            self,
+            vectors: Tuple[torch.Tensor],
     ) -> torch.Tensor:
         first_vector, second_vector = vectors
         assert len(first_vector.shape) == len(second_vector.shape) == 2, 'Vectors dimesions must be 2'
@@ -34,12 +34,12 @@ class CosineSimilarity2DVectors(nn.Module):
 class CLIP(nn.Module):
 
     def __init__(
-        self,
-        image_embedding: nn.Module,
-        text_embedding: nn.Module,
-        output_dim_img: int,
-        output_dim_text: int,
-        overall_dim: int = None
+            self,
+            image_embedding: nn.Module,
+            text_embedding: nn.Module,
+            output_dim_img: int,
+            output_dim_text: int,
+            overall_dim: int = None
     ):
         """
         image_embedding - model for embedding image
@@ -57,7 +57,7 @@ class CLIP(nn.Module):
             nn.ReLU(),
             nn.Linear(in_features=output_dim_img, out_features=overall_dim)
         )
-        
+
         self.model_text_emb = nn.Sequential(
             text_embedding,
             nn.ReLU(),
@@ -65,21 +65,21 @@ class CLIP(nn.Module):
         )
 
         self.cosine_simularity = CosineSimilarity2DVectors()
-    
+
     def forward(
-        self,
-        vectors: Tuple[torch.Tensor],
+            self,
+            vectors: Tuple[torch.Tensor],
     ) -> torch.Tensor:
         img, text = vectors
         img_emb = self.model_img_emb(img)
         text_emb = self.model_text_emb(text)
         output = self.cosine_simularity(img_emb, text_emb)
         return output
-    
+
     def inference(
-        self,
-        input_tensor: Tuple[torch.Tensor],
-        is_rewrite_classes: bool = False
+            self,
+            input_tensor: Tuple[torch.Tensor],
+            is_rewrite_classes: bool = False
     ) -> torch.Tensor:
         img, text_classes = input_tensor
         if hasattr(self, 'classes') and not is_rewrite_classes:
@@ -90,11 +90,12 @@ class CLIP(nn.Module):
         img_emb = self.model_img_emb(img)
         output = self.cosine_simularity(img_emb, classes)
         return torch.argmax(output, dim=1)
-        
+
 
 mobilenet_v3 = models.mobilenet_v3_small(pretrained=True)
 mobilenet_v3.classifier = nn.Identity()
 img_dim_size = 576
+
 
 class DistilBertForCLIP(nn.Module):
 
@@ -102,9 +103,10 @@ class DistilBertForCLIP(nn.Module):
         super().__init__()
         self.bert = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased')
         self.bert.classifier = nn.Identity()
-    
+
     def forward(self, x):
         return self.bert(x)['logits']
+
 
 distilbert = DistilBertForCLIP()
 text_dim_size = 768

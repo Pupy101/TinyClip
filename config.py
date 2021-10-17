@@ -3,6 +3,8 @@ from typing import Dict, Union
 from torch import optim, nn
 from model import clip
 
+from utils import utils
+
 
 class Config:
     DATASET_PATH: Dict[str, Union[None, str]] = {
@@ -22,8 +24,13 @@ class Config:
 
     MODEL = clip
 
-    IND_REQUIRES_GRAD_IMAGE_NET = -40 requires_grad
-    IND_REQUIRES_GRAD_TEXT_NET = -40
+    IND_REQUIRES_GRAD_IMAGE_NET: Union[int, None] = -40
+    IND_REQUIRES_GRAD_TEXT_NET: Union[int, None] = -40
+
+    if IND_REQUIRES_GRAD_IMAGE_NET is not None:
+        utils.freeze_weights(clip.model_img_emb, IND_REQUIRES_GRAD_IMAGE_NET)
+    if IND_REQUIRES_GRAD_TEXT_NET is not None:
+        utils.freeze_weights(clip.model_text_emb, IND_REQUIRES_GRAD_TEXT_NET)
 
     OPTIMIZER = optim.AdamW
     OPTIMIZER_PARAMS = {
