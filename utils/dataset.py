@@ -27,14 +27,14 @@ class TextAndImage(Dataset):
 
     def __getitem__(self, item):
         img = cv2.cvtColor(
-            cv2.imread(self.csv['image_name'][item]),
+            cv2.imread(self.csv['image_name'].iat[item]),
             cv2.COLOR_BGR2RGB
         )
         if self.transform is not None:
             img = self.transform(image=img)['image']
 
-        texts = self.csv['comment'][item]
-        marks = 5 - np.array(self.csv['comment_number'][item])
+        texts = self.csv['comment'].iat[item]
+        marks = 5 - np.array(self.csv['comment_number'].iat[item])
         probability = marks / np.sum(marks)
         text = np.random.choice(texts, p=probability)
         tokenized_text = self.tokenizer(
