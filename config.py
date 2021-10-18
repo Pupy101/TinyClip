@@ -12,12 +12,10 @@ class Config:
     TYPE_USING = 'train'  # or 'eval'
 
     DATASET_PARAMS: Dict[str, Union[str, int]] = {
-        'image_dir': './train_path',
-        'dir_to_train_file': './dir_to_train_file',
-        'dir_to_valid_file': './dir_to_valid_file',
-        'dir_to_caption_file': './dir_to_caption_file',
-        'max_size_seq_len': 50,
+        'path_to_csv': '/path/to/csv',
+        'dir_image': '/dir/to/folder/with/image',
         'tokenizer': DistilBertTokenizer.from_pretrained('distilbert-base-uncased'),
+        'max_size_seq_len': 70,
         'transform': {
             'train': augmentations.train_transform,
             'valid': augmentations.valid_transform
