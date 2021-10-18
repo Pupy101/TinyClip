@@ -37,8 +37,8 @@ class Config:
 
     PATH_TO_SAVE_MODEL_WEIGHTS = './train_result'
 
-    IND_REQUIRES_GRAD_IMAGE_NET: Union[int, None] = -40
-    IND_REQUIRES_GRAD_TEXT_NET: Union[int, None] = -40
+    IND_REQUIRES_GRAD_IMAGE_NET: Union[int, None] = 0
+    IND_REQUIRES_GRAD_TEXT_NET: Union[int, None] = 0
 
     if IND_REQUIRES_GRAD_IMAGE_NET is not None:
         utils.freeze_weights(clip.model_img_emb, IND_REQUIRES_GRAD_IMAGE_NET)
@@ -48,8 +48,8 @@ class Config:
     OPTIMIZER = optim.AdamW
     OPTIMIZER_PARAMS = {
         'params': [
-            *list(MODEL.model_img_emb.parameters())[:-30],
-            *list(MODEL.model_text_emb.parameters())[:-30]
+            *list(MODEL.model_img_emb.parameters())[IND_REQUIRES_GRAD_IMAGE_NET:],
+            *list(MODEL.model_text_emb.parameters())[IND_REQUIRES_GRAD_TEXT_NET:]
         ],
         'lr': 3e-4,
     }
