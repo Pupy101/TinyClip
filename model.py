@@ -73,7 +73,7 @@ class CLIP(nn.Module):
         img, text = vectors
         img_emb = self.model_img_emb(img)
         text_emb = self.model_text_emb(text)
-        output = self.cosine_simularity(img_emb, text_emb)
+        output = self.cosine_simularity((img_emb, text_emb))
         return output
 
     def inference(
@@ -88,7 +88,7 @@ class CLIP(nn.Module):
             classes = self.model_text_emb(text_classes)
             self.classes = classes
         img_emb = self.model_img_emb(img)
-        output = self.cosine_simularity(img_emb, classes)
+        output = self.cosine_simularity((img_emb, classes))
         return torch.argmax(output, dim=1)
 
 

@@ -1,3 +1,5 @@
+import os
+
 from os.path import join as path_join
 
 import torch
@@ -9,6 +11,7 @@ from utils.dataset import create_dataset
 
 
 def train_clip(config):
+    os.makedirs(config.PATH_TO_SAVE_MODEL_WEIGHTS, exist_ok=True)
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = config.MODEL.to(DEVICE)
     optimizer = config.OPTIMIZER(
@@ -52,7 +55,7 @@ def train_epoch(model, dataloader, optimizer, criterion, device):
         image, text = batch['image'].to(device), batch['text'].to(device)
         batch_size = image.size(0)
         output = model((image, text))
-        labels = torch.tensor([_ for _ in range(1, batch_size + 1)]).to(device)
+        labels = torch.tensor([_ for _ in range(batch_size)]).to(device)
         loss = criterion(output, labels)
 
         optimizer.zero_grad()
@@ -72,7 +75,7 @@ def eval_epoch(model, dataloader, optimizer, criterion, device):
     for batch in tqdm(dataloader):
         image, text = batch['image'].to(device), batch['text'].to(device)
         batch_size = image.size(0)
-        labels = torch.tensor([_ for _ in range(1, batch_size + 1)]).to(device)
+        labels = torch.tensor([_ for _ in range(batch_size)]).to(device)
         with torch.no_grad():
             output = model((image, text))
             loss = criterion(output, labels)

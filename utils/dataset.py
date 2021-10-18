@@ -84,7 +84,10 @@ def create_dataset(
     }
     with open(dir_to_caption_file) as f:
         for line in f:
-            img, description = re.findall(r'^([\w]+.jpg)#[0-9]+\t(.+.)$', line.strip())[0]
+            try:
+                img, description = re.findall(r'^([\w]+.jpg)#[0-9]+\t(.+.)$', line.strip())[0]
+            except IndexError:
+                continue
             img_path = join_path(image_dir, img)
             if img in train_images:
                 if img_path in train_df['image']:
