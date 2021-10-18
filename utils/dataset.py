@@ -5,9 +5,9 @@ from os.path import join as join_path
 
 import cv2
 import torch
+import numpy as np
 import pandas as pd
 
-from numpy.random import shuffle, choice
 from torch.utils.data import Dataset
 
 
@@ -34,10 +34,9 @@ class TextAndImage(Dataset):
             img = self.transform(image=img)['image']
 
         texts = self.csv['comment'][item]
-        marks = [5 - x for x in self.csv['comment_number'][item]]
-        probability = [x / sum(marks) for x in marks]
-
-        text = choice(texts, p=probability)
+        marks = 5 - np.array(self.csv['comment_number'][item])
+        probability = marks / np.sum(marks)
+        text = np.random.choice(texts, p=probability)
         tokenized_text = self.tokenizer(
             text,
             return_tensors="pt"
@@ -74,11 +73,12 @@ def create_dataset(
     df = df[index]
     df['image_name'] = df['image_name'].apply(lambda x: join_path(dir_image, x))
     df['comment_number'] = pd.to_numeric(df['comment_number'])
-    shuffled_index = shuffle(df.index)
-    count_examples = len(shuffled_index)
-    train_index = shuffled_index[:round(count_examples * 0.8)]
-    valid_index = shuffled_index[round(count_examples * 0.8):]
-    train_df, valid_df = df[train_index], df[valid_index]
+    df = df.groupby(by='image_name', as_index=False).agg(
+        {'comment_number': list, 'comment': list}
+    )
+    df.sample(frac=1).reset_index(drop=True)
+    num_example = df.shape[0]
+    train_df, valid_df = df.iloc[:round(0.8*num_example), :], df.iloc[round(0.8*num_example):, :]
     return (
         TextAndImage(
             csv=train_df,

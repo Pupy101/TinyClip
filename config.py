@@ -12,8 +12,8 @@ class Config:
     TYPE_USING = 'train'  # or 'eval'
 
     DATASET_PARAMS: Dict[str, Union[str, int]] = {
-        'path_to_csv': '/path/to/csv',
-        'dir_image': '/dir/to/folder/with/image',
+        'path_to_csv': '/content/flickr30k_images/results.csv',
+        'dir_image': '/content/flickr30k_images/flickr30k_images',
         'tokenizer': DistilBertTokenizer.from_pretrained('distilbert-base-uncased'),
         'max_size_seq_len': 70,
         'transform': {
