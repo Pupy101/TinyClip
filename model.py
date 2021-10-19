@@ -58,7 +58,6 @@ class CLIP(nn.Module):
         )
         self.model_text_emb = text_embedding
         self.clf_text = nn.Sequential(
-            text_embedding,
             nn.ReLU(),
             nn.Linear(in_features=output_dim_text, out_features=overall_dim)
         )
