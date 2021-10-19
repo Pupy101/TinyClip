@@ -51,20 +51,19 @@ class CLIP(nn.Module):
         super().__init__()
         if overall_dim is None:
             overall_dim = max(output_dim_img, output_dim_text)
-
-        self.model_img_emb = nn.Sequential(
-            image_embedding,
+        self.model_img_emb = image_embedding
+        self.clf_img = nn.Sequential(
             nn.ReLU(),
             nn.Linear(in_features=output_dim_img, out_features=overall_dim)
         )
-
-        self.model_text_emb = nn.Sequential(
+        self.model_text_emb = text_embedding
+        self.clf_text = nn.Sequential(
             text_embedding,
             nn.ReLU(),
             nn.Linear(in_features=output_dim_text, out_features=overall_dim)
         )
 
-        self.cosine_simularity = CosineSimilarity2DVectors()
+        self.cosine_similarity = CosineSimilarity2DVectors()
 
     def forward(
             self,
@@ -73,7 +72,9 @@ class CLIP(nn.Module):
         img, text = vectors
         img_emb = self.model_img_emb(img)
         text_emb = self.model_text_emb(text)
-        output = self.cosine_simularity((img_emb, text_emb))
+        classes_img = self.clf_img(img_emb)
+        classes_text = self.clf_text(text_emb)
+        output = self.cosine_simularity((classes_img, classes_text))
         return output
 
     def inference(
@@ -83,12 +84,14 @@ class CLIP(nn.Module):
     ) -> torch.Tensor:
         img, text_classes = input_tensor
         if hasattr(self, 'classes') and not is_rewrite_classes:
-            classes = self.classes
+            classes_text = self.classes
         else:
-            classes = self.model_text_emb(text_classes)
-            self.classes = classes
+            text_emb = self.model_text_emb(text_classes)
+            classes_text = self.clf_text(text_emb)
+            self.classes = classes_text
         img_emb = self.model_img_emb(img)
-        output = self.cosine_simularity((img_emb, classes))
+        classes_img = self.clf_img(img_emb)
+        output = self.cosine_simularity((classes_img, classes_text))
         return torch.argmax(output, dim=1)
 
 
