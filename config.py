@@ -5,7 +5,7 @@ from torch import optim, nn
 from transformers import DistilBertTokenizer
 
 from model import clip
-from utils import utils, augmentations
+from utils import augmentations
 
 
 
