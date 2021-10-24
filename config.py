@@ -1,4 +1,5 @@
 from typing import Dict, Union
+from collections import OrderedDict
 
 from torch import optim, nn
 from transformers import DistilBertTokenizer
@@ -37,23 +38,69 @@ class Config:
 
     PATH_TO_SAVE_MODEL_WEIGHTS = './train_result'
 
-    IND_REQUIRES_GRAD_IMAGE_NET: Union[int, None] = 0
-    IND_REQUIRES_GRAD_TEXT_NET: Union[int, None] = 0
-
-    if IND_REQUIRES_GRAD_IMAGE_NET is not None:
-        utils.freeze_weights(clip.model_img_emb, IND_REQUIRES_GRAD_IMAGE_NET)
-    if IND_REQUIRES_GRAD_TEXT_NET is not None:
-        utils.freeze_weights(clip.model_text_emb, IND_REQUIRES_GRAD_TEXT_NET)
-
     OPTIMIZER = optim.AdamW
-    OPTIMIZER_PARAMS = {
-        'params': [
-            *list(MODEL.model_img_emb.parameters())[IND_REQUIRES_GRAD_IMAGE_NET:],
-            *list(MODEL.model_text_emb.parameters())[IND_REQUIRES_GRAD_TEXT_NET:]
-        ],
-        'lr': 3e-4,
-    }
 
     CRITERION = nn.CrossEntropyLoss()
 
-    N_EPOCH = 10
+    TRAINING_STAGES = OrderedDict(
+        {
+            'Stage 1': {
+                'lr': 5e-5,
+                'params': [
+                    *list(MODEL.clf_img.parameters()),
+                    *list(MODEL.clf_text.parameters())
+                    ],
+                'freeze': {
+                    'model_img_emb': {
+                        'model': MODEL.model_img_emb,
+                        'last_index_freeze': 0,
+                        'freeze_all_net': True
+                    },
+                    'model_text_emb': {
+                        'model': MODEL.model_text_emb,
+                        'last_index_freeze': 0,
+                        'freeze_all_net': True
+                    }
+                },
+                'n_epoch': 10
+            },
+            'Stage 2': {
+                'lr': 1e-4,
+                'params': [
+                    *list(MODEL.clf_img.parameters()),
+                    *list(MODEL.model_img_emb.parameters())[-30:],
+                    *list(MODEL.clf_text.parameters()),
+                    *list(MODEL.model_text_emb.parameters())[-30:],
+                    ],
+                'unfreeze': {
+                    'model_img_emb': {
+                        'model': MODEL.model_img_emb,
+                        'first_index_unfreeze': -30
+                    },
+                    'model_text_emb': {
+                        'model': MODEL.model_text_emb,
+                        'first_index_unfreeze': -30
+                    }
+                },
+                'n_epoch': 20
+            },
+            'Stage 3': {
+                'lr': 3e-4,
+                'params': [
+                    *list(MODEL.clf_img.parameters()),
+                    *list(MODEL.model_img_emb.parameters()),
+                    *list(MODEL.clf_text.parameters()),
+                    *list(MODEL.model_text_emb.parameters()),
+                    ],
+                'unfreeze': {
+                    'model_img_emb': {
+                        'model': MODEL.model_img_emb
+                    },
+                    'model_text_emb': {
+                        'model': MODEL.model_text_emb
+                    }
+                },
+                'n_epoch': 40
+            }
+        }
+    )
