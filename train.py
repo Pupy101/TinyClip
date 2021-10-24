@@ -57,7 +57,7 @@ def train_clip(config):
                     model.state_dict(),
                     path_join(config.PATH_TO_SAVE_MODEL_WEIGHTS, f'model_{best_epoch}.pth')
                 )
-            print(f'Epoch {i + 1}/{n_epoch + 1}\tTrain loss: {train_loss:.4f}, Valid loss: {valid_loss:.4f}')
+            print(f'Epoch {i + 1}/{n_epoch}\tTrain loss: {train_loss:.4f}, Valid loss: {valid_loss:.4f}')
     print(f'Best epoch: {best_epoch}\t Valid loss: {min_val_loss}')
 
 
