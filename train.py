@@ -37,11 +37,11 @@ def train_clip(config):
         if 'freeze' in parameters_of_stage:
             freezed_parameters = parameters_of_stage['freeze']
             for name_params in freezed_parameters:
-                freeze_weights(**freezed_parameters[name_params], model=getattr(model, name_params))
+                freeze_weights(**freezed_parameters[name_params])
         if 'unfreeze' in parameters_of_stage:
             unfreezed_parameters = parameters_of_stage['unfreeze']
             for name_params in unfreezed_parameters:
-                unfreeze_weights(**unfreezed_parameters[name_params], model=getattr(model, name_params))
+                unfreeze_weights(**unfreezed_parameters[name_params])
         n_epoch = parameters_of_stage['n_epoch']
         optimizer = config.OPTIMIZER(
             lr=parameters_of_stage['lr'],
