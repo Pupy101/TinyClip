@@ -73,7 +73,7 @@ class CLIP(nn.Module):
         text_emb = self.model_text_emb(text)
         classes_img = self.clf_img(img_emb)
         classes_text = self.clf_text(text_emb)
-        output = self.cosine_simularity((classes_img, classes_text))
+        output = self.cosine_similarity((classes_img, classes_text))
         return output
 
     def inference(
