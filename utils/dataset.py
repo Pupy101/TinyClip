@@ -1,4 +1,4 @@
-import re
+import os
 import json
 
 from typing import Callable
@@ -72,8 +72,9 @@ def create_datasets_from_csv(
     df.columns = [x.strip() for x in df.columns]
     for column in df.columns:
         df[column] = df[column].apply(lambda x: x.strip() if isinstance(x, str) else x)
-    index = df['comment_number'].str.isdigit()
-    df = df[index]
+    if df is None:
+        index = df['comment_number'].str.isdigit()
+        df = df[index]
     df['image_name'] = df['image_name'].apply(lambda x: join_path(dir_image, x))
     df['comment_number'] = pd.to_numeric(df['comment_number'])
     df = df.groupby(by='image_name', as_index=False).agg(
@@ -105,7 +106,7 @@ def create_datasets_from_json(
     max_size_seq_len: int,
     transform: Callable
 ):
-    df = {'image': [], 'comment': [], 'comment_number': []}
+    df = {'image_name': [], 'comment': [], 'comment_number': []}
     df_file_and_sentence = set()
     for json_name in jsons:
         with open(json_name) as f:
@@ -114,9 +115,9 @@ def create_datasets_from_json(
             filename = image['filename']
             for description in image['sentences']:
                 sentence = description['raw']
-                if not (filename, sentence) in df_file_and_sentence:
+                if not (filename, sentence) in df_file_and_sentence and os.path.exists(join_path(dir_image, filename)):
                     df_file_and_sentence.add((filename, sentence))
-                    df['image'].append(filename)
+                    df['image_name'].append(filename)
                     df['comment'].append(sentence)
                     if description['sentid'] > 10:
                         df['comment_number'].append(1)
