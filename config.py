@@ -66,10 +66,10 @@ class Config:
                         'freeze_all_net': True
                     }
                 },
-                'n_epoch': 10
+                'n_epoch': 5
             },
             'Stage 2': {
-                'lr': 1e-4,
+                'lr': 6e-5,
                 'params': [
                     *list(MODEL.clf_img.parameters()),
                     *list(MODEL.model_img_emb.parameters())[-30:],
@@ -89,7 +89,7 @@ class Config:
                 'n_epoch': 20
             },
             'Stage 3': {
-                'lr': 3e-4,
+                'lr': 1e-4,
                 'params': [
                     *list(MODEL.clf_img.parameters()),
                     *list(MODEL.model_img_emb.parameters()),
@@ -104,7 +104,7 @@ class Config:
                         'model': MODEL.model_text_emb
                     }
                 },
-                'n_epoch': 100
+                'n_epoch': 30
             }
         }
     )
