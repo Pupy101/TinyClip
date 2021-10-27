@@ -1,4 +1,5 @@
 import re
+import json
 
 from typing import Callable
 from os.path import join as join_path
@@ -11,7 +12,7 @@ import pandas as pd
 from torch.utils.data import Dataset
 
 
-class TextAndImage(Dataset):
+class TextAndImageFromCSV(Dataset):
 
     def __init__(
             self,
@@ -58,14 +59,16 @@ class TextAndImage(Dataset):
         return self.csv.shape[0]
 
 
-def create_dataset(
+def create_datasets_from_csv(
         path_to_csv: str,
         dir_image: str,
         tokenizer: Callable,
         max_size_seq_len: int,
-        transform: Callable
+        transform: Callable,
+        df: pd.DataFrame = None
 ):
-    df = pd.read_csv(path_to_csv, delimiter='|')
+    if df is None:
+        df = pd.read_csv(path_to_csv, delimiter='|')
     df.columns = [x.strip() for x in df.columns]
     for column in df.columns:
         df[column] = df[column].apply(lambda x: x.strip() if isinstance(x, str) else x)
@@ -80,16 +83,50 @@ def create_dataset(
     num_example = df.shape[0]
     train_df, valid_df = df.iloc[:round(0.8*num_example), :], df.iloc[round(0.8*num_example):, :]
     return (
-        TextAndImage(
+        TextAndImageFromCSV(
             csv=train_df,
             tokenizer=tokenizer,
             max_size_seq_len=max_size_seq_len,
             transform=transform['train']
         ),
-        TextAndImage(
+        TextAndImageFromCSV(
             csv=valid_df,
             tokenizer=tokenizer,
             max_size_seq_len=max_size_seq_len,
             transform=transform['valid']
         )
+    )
+
+
+def create_datasets_from_json(
+    jsons: dict,
+    dir_image: str,
+    tokenizer: Callable,
+    max_size_seq_len: int,
+    transform: Callable
+):
+    df = {'image': [], 'comment': [], 'comment_number': []}
+    df_file_and_sentence = set()
+    for json_name in jsons:
+        with open(json_name) as f:
+            json_description = json.load(f)
+        for image in json_description['images']:
+            filename = image['filename']
+            for description in image['sentences']:
+                sentence = description['raw']
+                if not (filename, sentence) in df_file_and_sentence:
+                    df_file_and_sentence.add((filename, sentence))
+                    df['image'].append(filename)
+                    df['comment'].append(sentence)
+                    if description['sentid'] > 10:
+                        df['comment_number'].append(1)
+                    else:
+                        df['comment_number'].append(description['sentid'])
+    return create_datasets_from_csv(
+        '',
+        dir_image=dir_image,
+        tokenizer=tokenizer,
+        max_size_seq_len=max_size_seq_len,
+        transform=transform,
+        df=pd.DataFrame(df)
     )

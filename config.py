@@ -25,11 +25,11 @@ class Config:
 
     LOADER_PARAMS: Dict[str, Dict[str, Union[bool, int]]] = {
         'train': {
-            'batch_size': 16,
+            'batch_size': 192,
             'shuffle': True
         },
         'valid': {
-            'batch_size': 32,
+            'batch_size': 192,
             'shuffle': False
         }
     }
@@ -100,7 +100,7 @@ class Config:
                         'model': MODEL.model_text_emb
                     }
                 },
-                'n_epoch': 40
+                'n_epoch': 100
             }
         }
     )

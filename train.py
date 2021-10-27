@@ -7,7 +7,7 @@ import torch
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 
-from utils.dataset import create_dataset
+from utils.dataset import create_datasets_from_csv
 from utils.utils import freeze_weights, unfreeze_weights
 
 
@@ -17,7 +17,7 @@ def train_clip(config):
     model = config.MODEL.to(DEVICE)
     criterion = config.CRITERION
 
-    train_dataset, valid_dataset = create_dataset(
+    train_dataset, valid_dataset = create_datasets_from_csv(
         **config.DATASET_PARAMS
     )
 
