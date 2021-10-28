@@ -72,21 +72,21 @@ class Config:
                 'lr': 6e-5,
                 'params': [
                     *list(MODEL.clf_img.parameters()),
-                    *list(MODEL.model_img_emb.parameters())[-30:],
+                    *list(MODEL.model_img_emb.parameters())[-100:],
                     *list(MODEL.clf_text.parameters()),
-                    *list(MODEL.model_text_emb.parameters())[-30:],
+                    *list(MODEL.model_text_emb.parameters())[-100:],
                     ],
                 'unfreeze': {
                     'model_img_emb': {
                         'model': MODEL.model_img_emb,
-                        'first_index_unfreeze': -30
+                        'first_index_unfreeze': -100
                     },
                     'model_text_emb': {
                         'model': MODEL.model_text_emb,
-                        'first_index_unfreeze': -30
+                        'first_index_unfreeze': -100
                     }
                 },
-                'n_epoch': 20
+                'n_epoch': 10
             },
             'Stage 3': {
                 'lr': 1e-4,
@@ -104,7 +104,7 @@ class Config:
                         'model': MODEL.model_text_emb
                     }
                 },
-                'n_epoch': 30
+                'n_epoch': 15
             }
         }
     )
