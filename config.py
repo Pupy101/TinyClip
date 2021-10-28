@@ -72,24 +72,24 @@ class Config:
                 'lr': 6e-5,
                 'params': [
                     *list(MODEL.clf_img.parameters()),
-                    *list(MODEL.model_img_emb.parameters())[-100:],
+                    *list(MODEL.model_img_emb.parameters())[-200:],
                     *list(MODEL.clf_text.parameters()),
-                    *list(MODEL.model_text_emb.parameters())[-100:],
+                    *list(MODEL.model_text_emb.parameters())[-200:],
                     ],
                 'unfreeze': {
                     'model_img_emb': {
                         'model': MODEL.model_img_emb,
-                        'first_index_unfreeze': -100
+                        'first_index_unfreeze': -200
                     },
                     'model_text_emb': {
                         'model': MODEL.model_text_emb,
-                        'first_index_unfreeze': -100
+                        'first_index_unfreeze': -200
                     }
                 },
                 'n_epoch': 10
             },
             'Stage 3': {
-                'lr': 1e-4,
+                'lr': 2e-5,
                 'params': [
                     *list(MODEL.clf_img.parameters()),
                     *list(MODEL.model_img_emb.parameters()),
