@@ -1,4 +1,4 @@
-from typing import Callable, Union, Tuple
+from typing import Tuple
 
 import torch
 
@@ -35,30 +35,26 @@ class CLIP(nn.Module):
 
     def __init__(
             self,
-            image_embedding: nn.Module,
-            text_embedding: nn.Module,
-            output_dim_img: int,
-            output_dim_text: int,
+            name_image_embedding: str,
+            name_text_embedding: str,
             overall_dim: int = None
     ):
         """
-        image_embedding - model for embedding image
-        text_embedding - model for embedding text
-        output_dim_img - dim of output image_embedding
-        output_dim_text - dim of output text_embedding
+        name_image_embedding - name model for embedding image
+        name_text_embedding - name model for embedding text
         overall_dim - overall dimesion
         """
         super().__init__()
+        self.model_img_emb, output_dim_img = configuration_image_model(name_image_embedding)
+        self.model_text_emb, output_dim_text = configuration_text_model(name_image_embedding)
         if overall_dim is None:
             overall_dim = max(output_dim_img, output_dim_text)
-        self.model_img_emb = image_embedding
         self.clf_img = nn.Sequential(
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Linear(in_features=output_dim_img, out_features=overall_dim)
         )
-        self.model_text_emb = text_embedding
         self.clf_text = nn.Sequential(
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Linear(in_features=output_dim_text, out_features=overall_dim)
         )
 
@@ -94,29 +90,37 @@ class CLIP(nn.Module):
         return torch.argmax(output, dim=1)
 
 
-mobilenet_v3 = models.mobilenet_v3_small(pretrained=True)
-mobilenet_v3.classifier = nn.Identity()
-img_dim_size = 576
+def configuration_image_model(name_model: str) -> Tuple[nn.Module, int]:
+    if name_model == 'mobilenet_v3':
+        model = models.mobilenet_v3_small(pretrained=True)
+        model.classifier = nn.Identity()
+        img_dim_size = 576
+    elif name_model == 'wide_resnet50':
+        model = models.wide_resnet50_2(pretrained=True)
+        model.fc = nn.Identity()
+        img_dim_size = 2048
+    elif name_model == 'resnext50':
+        model = models.resnext50_32x4d(pretrained=True)
+        model.fc = nn.Identity()
+        img_dim_size = 2048        
+    return model, img_dim_size
 
 
-class DistilBertForCLIP(nn.Module):
+class WrapperModelFromHuggingFace(nn.Module):
 
-    def __init__(self):
+    def __init__(self, hugging_face_model: nn.Module):
         super().__init__()
-        self.bert = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased')
-        self.bert.classifier = nn.Identity()
+        self.model = hugging_face_model
+        
 
-    def forward(self, x):
-        return self.bert(x)['logits']
+    def forward(self, x) -> torch.Tensor:
+        return self.model(x)['logits']
 
 
-distilbert = DistilBertForCLIP()
-text_dim_size = 768
-
-clip = CLIP(
-    image_embedding=mobilenet_v3,
-    text_embedding=distilbert,
-    output_dim_img=img_dim_size,
-    output_dim_text=text_dim_size,
-    overall_dim=512
-)
+def configuration_text_model(name_model: str) -> Tuple[nn.Module, int]:
+    if name_model == 'distilbert':
+        bert = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased')
+        bert.classifier = nn.Identity()
+        model = WrapperModelFromHuggingFace(bert)
+        text_dim_size = 768    
+    return model, text_dim_size
