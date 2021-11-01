@@ -50,7 +50,7 @@ def train_clip(config):
         for i in range(n_epoch):
             train_loss = train_epoch(model, train_loader, optimizer, criterion, DEVICE)
             valid_loss = eval_epoch(model, valid_loader, optimizer, criterion, DEVICE)
-            if valid_loss < min_val_loss:
+            if valid_loss < min_val_loss and valid_loss < train_loss:
                 min_val_loss = valid_loss
                 best_epoch = i + 1
                 torch.save(
