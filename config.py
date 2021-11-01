@@ -4,7 +4,7 @@ from collections import OrderedDict
 from torch import optim, nn
 from transformers import DistilBertTokenizer
 
-from model import clip
+from model import CLIP
 from utils import augmentations
 
 
@@ -38,7 +38,7 @@ class Config:
         }
     }
 
-    MODEL = clip
+    MODEL = CLIP('wide_resnet50', 'distilbert', 1024)
 
     PATH_TO_SAVE_MODEL_WEIGHTS = './train_result'
 
