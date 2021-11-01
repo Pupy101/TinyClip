@@ -46,7 +46,7 @@ class CLIP(nn.Module):
         """
         super().__init__()
         self.model_img_emb, output_dim_img = configuration_image_model(name_image_embedding)
-        self.model_text_emb, output_dim_text = configuration_text_model(name_image_embedding)
+        self.model_text_emb, output_dim_text = configuration_text_model(name_text_embedding)
         if overall_dim is None:
             overall_dim = max(output_dim_img, output_dim_text)
         self.clf_img = nn.Sequential(
