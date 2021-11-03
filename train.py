@@ -13,7 +13,8 @@ from utils.utils import freeze_weights, unfreeze_weights
 
 def train_clip(config):
     os.makedirs(config.PATH_TO_SAVE_MODEL_WEIGHTS, exist_ok=True)
-    config.MODEL.load_state_dict(torch.load(config.PATH_TO_WEIGHTS))
+    if config.PATH_TO_WEIGHTS is not None:
+        config.MODEL.load_state_dict(torch.load(config.PATH_TO_WEIGHTS))
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = config.MODEL.to(DEVICE)
     criterion = config.CRITERION

@@ -29,7 +29,8 @@ def inference(config):
     os.makedirs(inference_params['TARGET_DIR'], exist_ok=True)
     classes = inference_params['TOKENIZER'](inference_params['CLASSES'], return_tensors="pt")['input_ids']
     index_predict_file = find_max_predict_index(inference_params['TARGET_DIR'], 'predict')
-    config.MODEL.load_state_dict(torch.load(config.PATH_TO_WEIGHTS))
+    if config.PATH_TO_WEIGHTS is not None:
+        config.MODEL.load_state_dict(torch.load(config.PATH_TO_WEIGHTS))
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model, classes = config.MODEL.to(DEVICE), classes.to(DEVICE)
     with open(join_path(inference_params['TARGET_DIR'], f'predict_{index_predict_file}.txt'), 'w') as f:
