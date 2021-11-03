@@ -12,7 +12,7 @@ from utils.augmentations import valid_transform
 
 
 def find_max_predict_index(dir_to_predict, prefix_to_file):
-    files = os.makedirs(dir_to_predict)
+    files = os.listdir(dir_to_predict)
     max_file_index = 0
     for file in files:
         name, ext = os.path.splitext(file)
@@ -29,7 +29,7 @@ def inference(config):
     os.makedirs(inference_params['TARGET_DIR'], exist_ok=True)
     classes = inference_params['TOKENIZER'](inference_params['CLASSES'], return_tensors="pt")['input_ids']
     index_predict_file = find_max_predict_index(inference_params['TARGET_DIR'], 'predict')
-    config.MODEL = config.MODEL.load_state_dict(torch.load(config.PATH_TO_WEIGHTS))
+    config.MODEL.load_state_dict(torch.load(config.PATH_TO_WEIGHTS))
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model, classes = config.MODEL.to(DEVICE), classes.to(DEVICE)
     with open(join_path(inference_params['TARGET_DIR'], f'predict_{index_predict_file}.txt')) as f, torch.no_grad():

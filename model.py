@@ -19,6 +19,7 @@ class CosineSimilarity2DVectors(nn.Module):
     def forward(
             self,
             vectors: Tuple[torch.Tensor],
+            normalize: bool = False
     ) -> torch.Tensor:
         first_vector, second_vector = vectors
         assert len(first_vector.shape) == len(second_vector.shape) == 2, 'Vectors dimesions must be 2'
@@ -28,7 +29,9 @@ class CosineSimilarity2DVectors(nn.Module):
             first_vector.unsqueeze(2) * second_vector.permute(1, 0).unsqueeze(0),
             dim=1
         )
-        return multiply_of_vectors / (torch.sqrt(first_l2_norm * second_l2_norm) + self.eps)
+        if normalize:
+            return multiply_of_vectors / (torch.sqrt(first_l2_norm * second_l2_norm) + self.eps)
+        return multiply_of_vectors
 
 
 class CLIP(nn.Module):
@@ -86,7 +89,7 @@ class CLIP(nn.Module):
             self.classes = classes_text
         img_emb = self.model_img_emb(img)
         classes_img = self.clf_img(img_emb)
-        output = self.cosine_simularity((classes_img, classes_text))
+        output = self.cosine_similarity((classes_img, classes_text), normalize=True)
         return torch.argmax(output, dim=1)
 
     @property
