@@ -70,7 +70,7 @@ def train_epoch(model, dataloader, optimizer, criterion, device, is_sam_optimize
     model.train()
     train_loss = 0
     count = 0
-    for i, batch in tqdm(enumerate(dataloader), leave=False):
+    for batch in tqdm(dataloader, leave=False):
         image, text = batch['image'].to(device), batch['text'].to(device)
         batch_size_image, batch_size_text = image.size(0), text.size(0)
 
