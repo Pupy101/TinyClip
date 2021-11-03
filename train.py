@@ -48,12 +48,12 @@ def train_clip(config):
 
         n_epoch = parameters_of_stage['n_epoch']
 
-        optimizer_params = {key: parameters_of_stage for key in parameters_of_stage if key in ['lr', 'params', 'base_optimizer']}
+        optimizer_params = {key: parameters_of_stage[key] for key in parameters_of_stage if key in ['lr', 'params', 'base_optimizer']}
         optimizer = config.OPTIMIZER(**optimizer_params)
         is_sam_optimizer = True if 'base_optimizer' in optimizer_params else False
 
         for i in range(n_epoch):
-            train_loss = train_epoch(model, train_loader, optimizer, criterion, DEVICE)
+            train_loss = train_epoch(model, train_loader, optimizer, criterion, DEVICE, is_sam_optimizer)
             valid_loss = eval_epoch(model, valid_loader, criterion, DEVICE)
             if valid_loss < min_val_loss and valid_loss < train_loss:
                 min_val_loss = valid_loss
@@ -74,24 +74,30 @@ def train_epoch(model, dataloader, optimizer, criterion, device, is_sam_optimize
         image, text = batch['image'].to(device), batch['text'].to(device)
         batch_size_image, batch_size_text = image.size(0), text.size(0)
 
-        logits_image, logits_text = model((image, text))
         labels_image, labels_text = torch.tensor([_ for _ in range(batch_size_image)]).to(device), torch.tensor([_ for _ in range(batch_size_text)]).to(device)
         if is_sam_optimizer:
+            mean_loss = 0
+            logits_image, logits_text = model((image, text))
             loss = criterion(logits_image, labels_image) + criterion(logits_text, labels_text)
             loss.backward()
-            if i % 2:
-                optimizer.second_step(zero_grad=True)
-            else:
-                optimizer.first_step(zero_grad=True)
+            optimizer.first_step(zero_grad=True)
+            mean_loss += loss.item()
+
+            logits_image, logits_text = model((image, text))
+            loss = criterion(logits_image, labels_image) + criterion(logits_text, labels_text)
+            optimizer.second_step(zero_grad=True)
+            mean_loss += loss.item()
             
+            train_loss += mean_loss / 2
         else:
+            logits_image, logits_text = model((image, text))
             loss = criterion(logits_image, labels_image) + criterion(logits_text, labels_text)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
             train_loss += loss.item()
-            count += 1
+        count += 1
 
     return train_loss / count
 
