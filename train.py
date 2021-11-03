@@ -84,7 +84,10 @@ def train_epoch(model, dataloader, optimizer, criterion, device):
         ):
             loss = criterion(logits, labels)
             optimizer[type_optimizer].zero_grad()
-            loss.backward()
+            if type_optimizer == 'image':
+                loss.backward(retain_graph=True)
+            else:
+                loss.backward()
             optimizer[type_optimizer].step()
             count_loss += loss.item()
 

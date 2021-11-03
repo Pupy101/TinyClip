@@ -34,7 +34,6 @@ class CLIP(nn.Module):
             nn.LeakyReLU(),
             nn.Linear(in_features=output_dim_text, out_features=overall_dim)
         )
-        self.logit_scale = nn.Parameter(torch.tensor([1 / 0.07], dtype=torch.float))
 
     def forward_img_net(self, img: torch.Tensor) -> torch.Tensor:
             img_embedding = self.model_img_emb(img)
@@ -53,8 +52,7 @@ class CLIP(nn.Module):
             image_features: torch.Tensor,
             text_features: torch.Tensor
         ) -> Tuple[torch.Tensor]:
-        logit_scale = self.logit_scale.exp()
-        logits_image = logit_scale * image_features @ text_features.t()
+        logits_image = image_features @ text_features.t()
         logits_text = logits_image.t()
         return logits_image, logits_text
 
@@ -70,7 +68,7 @@ class CLIP(nn.Module):
         if image_features is None:
             image_features = self.forward_img_net(img)
 
-        if image_features is None:
+        if text_features is None:
             text_features = self.forward_txt_net(text)
         
         logits_image, logits_text = self.forward_cosine_similarity(image_features, text_features)

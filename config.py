@@ -52,12 +52,10 @@ class Config:
                 'lr': 5e-5,
                 'params': {
                     'image': [
-                        *list(MODEL.matrix_normalize_img_emb.parameters()),
-                        *list(MODEL.logit_scale)
+                        *list(MODEL.matrix_normalize_img_emb.parameters())
                         ],
                     'text': [
-                        *list(MODEL.matrix_normalize_text_emb.parameters()),
-                        *list(MODEL.logit_scale)
+                        *list(MODEL.matrix_normalize_text_emb.parameters())
                         ]                        
                 },
                 'freeze': {
@@ -79,13 +77,11 @@ class Config:
                 'params': {
                     'image': [
                         *list(MODEL.model_img_emb.parameters())[-70:],
-                        *list(MODEL.matrix_normalize_img_emb.parameters()),
-                        *list(MODEL.logit_scale)
+                        *list(MODEL.matrix_normalize_img_emb.parameters())
                     ],
                     'text': [
                         *list(MODEL.model_text_emb.parameters())[-50:],
-                        *list(MODEL.matrix_normalize_text_emb.parameters()),
-                        *list(MODEL.logit_scale)
+                        *list(MODEL.matrix_normalize_text_emb.parameters())
                     ]
                 },
                 'unfreeze': {
@@ -105,13 +101,11 @@ class Config:
                 'params': {
                     'image': [
                         *list(MODEL.model_img_emb.parameters())[-120:],
-                        *list(MODEL.matrix_normalize_img_emb.parameters()),
-                        *list(MODEL.logit_scale)
+                        *list(MODEL.matrix_normalize_img_emb.parameters())
                     ],
                     'text': [
                         *list(MODEL.model_text_emb.parameters())[-90:],
-                        *list(MODEL.matrix_normalize_text_emb.parameters()),
-                        *list(MODEL.logit_scale)
+                        *list(MODEL.matrix_normalize_text_emb.parameters())
                     ]
                 },
                 'unfreeze': {
