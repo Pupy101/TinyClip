@@ -53,11 +53,11 @@ class Config:
                 'params': {
                     'image': [
                         *list(MODEL.matrix_normalize_img_emb.parameters()),
-                        *list(MODEL.logit_scale.parameters())
+                        *list(MODEL.logit_scale)
                         ],
                     'text': [
                         *list(MODEL.matrix_normalize_text_emb.parameters()),
-                        *list(MODEL.logit_scale.parameters())
+                        *list(MODEL.logit_scale)
                         ]                        
                 },
                 'freeze': {
@@ -80,12 +80,12 @@ class Config:
                     'image': [
                         *list(MODEL.model_img_emb.parameters())[-70:],
                         *list(MODEL.matrix_normalize_img_emb.parameters()),
-                        *list(MODEL.logit_scale.parameters())
+                        *list(MODEL.logit_scale)
                     ],
                     'text': [
                         *list(MODEL.model_text_emb.parameters())[-50:],
                         *list(MODEL.matrix_normalize_text_emb.parameters()),
-                        *list(MODEL.logit_scale.parameters())
+                        *list(MODEL.logit_scale)
                     ]
                 },
                 'unfreeze': {
@@ -106,12 +106,12 @@ class Config:
                     'image': [
                         *list(MODEL.model_img_emb.parameters())[-120:],
                         *list(MODEL.matrix_normalize_img_emb.parameters()),
-                        *list(MODEL.logit_scale.parameters())
+                        *list(MODEL.logit_scale)
                     ],
                     'text': [
                         *list(MODEL.model_text_emb.parameters())[-90:],
                         *list(MODEL.matrix_normalize_text_emb.parameters()),
-                        *list(MODEL.logit_scale.parameters())
+                        *list(MODEL.logit_scale)
                     ]
                 },
                 'unfreeze': {
