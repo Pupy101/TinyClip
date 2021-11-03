@@ -1,4 +1,4 @@
-from typing import Dict, Union
+from typing import Any, Dict, Union
 from collections import OrderedDict
 
 from torch import optim, nn
@@ -10,7 +10,7 @@ from utils import augmentations
 
 
 class Config:
-    TYPE_USING = 'train'  # or 'eval'
+    TYPE_USING: str = 'train'  # or 'eval'
 
     DATASET_PARAMS: Dict[str, Union[str, int]] = {
         'jsons': [
@@ -38,15 +38,15 @@ class Config:
         }
     }
 
-    MODEL = CLIP('wide_resnet50', 'distilbert', 1024)
+    MODEL: nn.Module = CLIP('wide_resnet50', 'distilbert', 1024)
 
-    PATH_TO_SAVE_MODEL_WEIGHTS = './train_result'
+    PATH_TO_WEIGHTS: Union[str, None] = None
 
-    OPTIMIZER = optim.AdamW
+    OPTIMIZER: nn.Module = optim.AdamW
 
     CRITERION = nn.CrossEntropyLoss()
 
-    TRAINING_STAGES = OrderedDict(
+    TRAINING_STAGES: OrderedDict = OrderedDict(
         {
             'Stage 1': {
                 'lr': 5e-5,
@@ -108,3 +108,17 @@ class Config:
             }
         }
     )
+
+    PATH_TO_SAVE_MODEL_WEIGHTS: str = './train_result'
+
+    INFERENCE_PARAMS: Dict[str, Any] = {
+        'TARGET_DIR': 'path/to/target/ddir',
+        'IMAGES_DIR': 'path/to/images',
+        'TOKENIZER': DistilBertTokenizer.from_pretrained('distilbert-base-uncased'),
+        'CLASSES': [
+            'Dog',
+            'Cat',
+            'Human',
+            'Car'
+        ]
+    }
