@@ -89,14 +89,11 @@ class CLIP(nn.Module):
         img, text_classes = input_tensor
         if hasattr(self, 'inference_text_embedding') and not is_rewrite_classes:
             inference_text_embedding = self.inference_text_embedding
-            logits_image, logits_text = self.forward(img, text_classes, text_features=inference_text_embedding)
+            logits_image, _ = self.forward(img, text_classes, text_features=inference_text_embedding)
         else:
-            logits_image, logits_text, image_features, text_features = self.forward(img, text_classes, is_raw_output=True)
+            logits_image, *_, text_features = self.forward(img, text_classes, is_raw_output=True)
             self.inference_text_embedding = text_features
-        img_emb = self.model_img_emb(img)
-        classes_img = self.clf_img(img_emb)
-        output = self.cosine_similarity((classes_img, classes_text), normalize=True)
-        return torch.argmax(output, dim=1)
+        return torch.argmax(logits_image, dim=1)
 
     @property
     def device(self):
