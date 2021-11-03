@@ -40,5 +40,6 @@ def inference(config):
                 cv2.COLOR_BGR2RGB
             )
             input_image = valid_transform(image=image)['image'].unsqueeze(0).to(DEVICE)
-            output = model((input_image, classes))
-            print(output.shape)
+            output = model.inference((input_image, classes))
+            index = output.view(-1).tolist()[0]
+            f.write('{} {}\n'.format(inference_params['CLASSES'][index], file))
