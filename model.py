@@ -34,7 +34,7 @@ class CLIP(nn.Module):
             nn.LeakyReLU(),
             nn.Linear(in_features=output_dim_text, out_features=overall_dim)
         )
-        self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
+        self.logit_scale = nn.Parameter(torch.tensor([1 / 0.07], dtype=torch.float))
 
     def forward_img_net(self, img: torch.Tensor) -> torch.Tensor:
             img_embedding = self.model_img_emb(img)
