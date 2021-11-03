@@ -44,10 +44,16 @@ def train_clip(config):
             for name_params in unfreezed_parameters:
                 unfreeze_weights(**unfreezed_parameters[name_params])
         n_epoch = parameters_of_stage['n_epoch']
-        optimizer = config.OPTIMIZER(
-            lr=parameters_of_stage['lr'],
-            params=parameters_of_stage['params']
-        )
+        optimizer = {
+            'image': config.OPTIMIZER(
+                lr=parameters_of_stage['lr'],
+                params=parameters_of_stage['params']['image']
+                ),
+            'text': config.OPTIMIZER(
+                lr=parameters_of_stage['lr'],
+                params=parameters_of_stage['params']['text']
+                )
+        }
         for i in range(n_epoch):
             train_loss = train_epoch(model, train_loader, optimizer, criterion, DEVICE)
             valid_loss = eval_epoch(model, valid_loader, optimizer, criterion, DEVICE)
@@ -64,38 +70,42 @@ def train_clip(config):
 
 def train_epoch(model, dataloader, optimizer, criterion, device):
     model.train()
-    train_loss = 0
+    train_loss_image, train_loss_text = 0, 0
     count = 0
     for batch in tqdm(dataloader, leave=False):
         image, text = batch['image'].to(device), batch['text'].to(device)
-        batch_size = image.size(0)
-        output = model((image, text))
-        labels = torch.tensor([_ for _ in range(batch_size)]).to(device)
-        loss = criterion(output, labels)
+        batch_size_image, batch_size_text = image.size(0), text.size(0)
+        logits_image, logits_text = model((image, text))
+        labels_image, labels_text = torch.tensor([_ for _ in range(batch_size_image)]).to(device), torch.tensor([_ for _ in range(batch_size_text)]).to(device)
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        for type_optimizer, logits, labels, count_loss in zip(
+            ('image', 'text'), (logits_image, logits_text), (labels_image, labels_text), (train_loss_image, train_loss_text)
+        ):
+            loss = criterion(logits, labels)
+            optimizer[type_optimizer].zero_grad()
+            loss.backward()
+            optimizer[type_optimizer].step()
+            count_loss += loss.item()
 
-        train_loss += loss.item()
         count += 1
 
-    return train_loss / count
+    return train_loss_image / count, train_loss_text / count
 
-
-def eval_epoch(model, dataloader, optimizer, criterion, device):
+@torch.no_grad()
+def eval_epoch(model, dataloader, criterion, device):
     model.eval()
-    eval_loss = 0
+    eval_loss_image, eval_loss_text = 0, 0
     count = 0
     for batch in tqdm(dataloader, leave=False):
         image, text = batch['image'].to(device), batch['text'].to(device)
-        batch_size = image.size(0)
-        labels = torch.tensor([_ for _ in range(batch_size)]).to(device)
-        with torch.no_grad():
-            output = model((image, text))
-            loss = criterion(output, labels)
+        batch_size_image, batch_size_text = image.size(0), text.size(0)
+        labels_image, labels_text = torch.tensor([_ for _ in range(batch_size_image)]).to(device), torch.tensor([_ for _ in range(batch_size_text)]).to(device)
 
-        eval_loss += loss.item()
+        logits_image, logits_text = model((image, text))
+        for logits, labels, count_loss in zip((logits_image, logits_text), (labels_image, labels_text), (eval_loss_image, eval_loss_text)):
+            loss = criterion(logits, labels)
+            count_loss += loss.item()
+
         count += 1
 
-    return eval_loss / count
+    return eval_loss_image / count, eval_loss_text / count
