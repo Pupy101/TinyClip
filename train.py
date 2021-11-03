@@ -56,16 +56,19 @@ def train_clip(config):
                 )
         }
         for i in range(n_epoch):
-            train_loss = train_epoch(model, train_loader, optimizer, criterion, DEVICE)
-            valid_loss = eval_epoch(model, valid_loader, optimizer, criterion, DEVICE)
-            if valid_loss < min_val_loss and valid_loss < train_loss:
-                min_val_loss = valid_loss
+            train_loss_image, train_loss_text = train_epoch(model, train_loader, optimizer, criterion, DEVICE)
+            valid_loss_image, valid_loss_text = eval_epoch(model, valid_loader, criterion, DEVICE)
+            sum_valid_loss = valid_loss_image + valid_loss_text
+            sum_train_loss = train_loss_image + train_loss_text
+            if sum_valid_loss < min_val_loss and sum_valid_loss < sum_train_loss:
+                min_val_loss = sum_valid_loss
                 best_epoch = i + 1
                 torch.save(
                     model.state_dict(),
                     path_join(config.PATH_TO_SAVE_MODEL_WEIGHTS, f'model_{stage_name}_{best_epoch}.pth')
                 )
-            print(f'Epoch {i + 1}/{n_epoch}\tTrain loss: {train_loss:.4f}, Valid loss: {valid_loss:.4f}')
+            print(f'Epoch {i + 1}/{n_epoch}\tTrain image loss: {train_loss_image:.4f}, text loss: {train_loss_image:.4f}; Valid image loss: {valid_loss_image:.4f}, text loss: {valid_loss_text:.4f}'
+            )
     print(f'Best epoch: {best_epoch}\t Valid loss: {min_val_loss}')
 
 
