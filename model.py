@@ -89,6 +89,10 @@ class CLIP(nn.Module):
         output = self.cosine_simularity((classes_img, classes_text))
         return torch.argmax(output, dim=1)
 
+    @property
+    def device(self):
+        return next(iter(self.parameters())).device
+
 
 def configuration_image_model(name_model: str) -> Tuple[nn.Module, int]:
     if name_model == 'mobilenet_v3':
