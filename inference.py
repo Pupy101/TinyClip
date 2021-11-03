@@ -32,7 +32,7 @@ def inference(config):
     config.MODEL.load_state_dict(torch.load(config.PATH_TO_WEIGHTS))
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model, classes = config.MODEL.to(DEVICE), classes.to(DEVICE)
-    with open(join_path(inference_params['TARGET_DIR'], f'predict_{index_predict_file}.txt'), 'w') as f, torch.no_grad():
+    with open(join_path(inference_params['TARGET_DIR'], f'predict_{index_predict_file}.txt'), 'w') as f:
         for file in os.listdir(inference_params['IMAGES_DIR']):
             path_to_image = join_path(inference_params['IMAGES_DIR'], file)
             image = cv2.cvtColor(
