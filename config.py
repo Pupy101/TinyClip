@@ -50,14 +50,10 @@ class Config:
         {
             'Stage 1': {
                 'lr': 5e-5,
-                'params': {
-                    'image': [
-                        *list(MODEL.matrix_normalize_img_emb.parameters())
-                        ],
-                    'text': [
-                        *list(MODEL.matrix_normalize_text_emb.parameters())
-                        ]                        
-                },
+                'params': [
+                    *list(MODEL.matrix_normalize_img_emb.parameters()),
+                    *list(MODEL.matrix_normalize_text_emb.parameters())
+                ],
                 'freeze': {
                     'model_img_emb': {
                         'model': MODEL.model_img_emb,
@@ -74,16 +70,12 @@ class Config:
             },
             'Stage 2': {
                 'lr': 6e-5,
-                'params': {
-                    'image': [
-                        *list(MODEL.model_img_emb.parameters())[-70:],
-                        *list(MODEL.matrix_normalize_img_emb.parameters())
-                    ],
-                    'text': [
-                        *list(MODEL.model_text_emb.parameters())[-50:],
-                        *list(MODEL.matrix_normalize_text_emb.parameters())
-                    ]
-                },
+                'params': [
+                    *list(MODEL.model_img_emb.parameters())[-70:],
+                    *list(MODEL.matrix_normalize_img_emb.parameters()),
+                    *list(MODEL.model_text_emb.parameters())[-50:],
+                    *list(MODEL.matrix_normalize_text_emb.parameters())
+                ],
                 'unfreeze': {
                     'model_img_emb': {
                         'model': MODEL.model_img_emb,
@@ -98,16 +90,12 @@ class Config:
             },
             'Stage 3': {
                 'lr': 2e-5,
-                'params': {
-                    'image': [
-                        *list(MODEL.model_img_emb.parameters())[-120:],
-                        *list(MODEL.matrix_normalize_img_emb.parameters())
-                    ],
-                    'text': [
-                        *list(MODEL.model_text_emb.parameters())[-90:],
-                        *list(MODEL.matrix_normalize_text_emb.parameters())
-                    ]
-                },
+                'params': [
+                    *list(MODEL.model_img_emb.parameters())[-120:],
+                    *list(MODEL.matrix_normalize_img_emb.parameters()),
+                    *list(MODEL.model_text_emb.parameters())[-90:],
+                    *list(MODEL.matrix_normalize_text_emb.parameters())
+                ],
                 'unfreeze': {
                     'model_img_emb': {
                         'model': MODEL.model_img_emb,

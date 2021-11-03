@@ -45,74 +45,60 @@ def train_clip(config):
             for name_params in unfreezed_parameters:
                 unfreeze_weights(**unfreezed_parameters[name_params])
         n_epoch = parameters_of_stage['n_epoch']
-        optimizer = {
-            'image': config.OPTIMIZER(
-                lr=parameters_of_stage['lr'],
-                params=parameters_of_stage['params']['image']
-                ),
-            'text': config.OPTIMIZER(
-                lr=parameters_of_stage['lr'],
-                params=parameters_of_stage['params']['text']
-                )
-        }
+        optimizer = config.OPTIMIZER(
+            lr=parameters_of_stage['lr'],
+            params=parameters_of_stage['params']
+        )
         for i in range(n_epoch):
-            train_loss_image, train_loss_text = train_epoch(model, train_loader, optimizer, criterion, DEVICE)
-            valid_loss_image, valid_loss_text = eval_epoch(model, valid_loader, criterion, DEVICE)
-            sum_valid_loss = valid_loss_image + valid_loss_text
-            sum_train_loss = train_loss_image + train_loss_text
-            if sum_valid_loss < min_val_loss and sum_valid_loss < sum_train_loss:
-                min_val_loss = sum_valid_loss
+            train_loss = train_epoch(model, train_loader, optimizer, criterion, DEVICE)
+            valid_loss = eval_epoch(model, valid_loader, criterion, DEVICE)
+            if valid_loss < min_val_loss and valid_loss < train_loss:
+                min_val_loss = valid_loss
                 best_epoch = i + 1
                 torch.save(
                     model.state_dict(),
                     path_join(config.PATH_TO_SAVE_MODEL_WEIGHTS, f'model_{stage_name}_{best_epoch}.pth')
                 )
-            print(f'Epoch {i + 1}/{n_epoch}\tTrain image loss: {train_loss_image:.4f}, text loss: {train_loss_image:.4f}; Valid image loss: {valid_loss_image:.4f}, text loss: {valid_loss_text:.4f}'
-            )
+            print(f'Epoch {i + 1}/{n_epoch}\tTrain loss: {train_loss:.4f}; Valid image loss: {valid_loss:.4f}')
     print(f'Best epoch: {best_epoch}\t Valid loss: {min_val_loss}')
 
 
 def train_epoch(model, dataloader, optimizer, criterion, device):
     model.train()
-    train_loss_image, train_loss_text = 0, 0
+    train_loss = 0
     count = 0
     for batch in tqdm(dataloader, leave=False):
         image, text = batch['image'].to(device), batch['text'].to(device)
         batch_size_image, batch_size_text = image.size(0), text.size(0)
+
         logits_image, logits_text = model((image, text))
         labels_image, labels_text = torch.tensor([_ for _ in range(batch_size_image)]).to(device), torch.tensor([_ for _ in range(batch_size_text)]).to(device)
 
-        for type_optimizer, logits, labels, count_loss in zip(
-            ('image', 'text'), (logits_image, logits_text), (labels_image, labels_text), (train_loss_image, train_loss_text)
-        ):
-            loss = criterion(logits, labels)
-            optimizer[type_optimizer].zero_grad()
-            if type_optimizer == 'image':
-                loss.backward(retain_graph=True)
-            else:
-                loss.backward()
-            optimizer[type_optimizer].step()
-            count_loss += loss.item()
+        loss = criterion(logits_image, labels_image) + criterion(logits_text, labels_text)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
+        train_loss += loss.item()
         count += 1
 
-    return train_loss_image / count, train_loss_text / count
+    return train_loss / count
 
 @torch.no_grad()
 def eval_epoch(model, dataloader, criterion, device):
     model.eval()
-    eval_loss_image, eval_loss_text = 0, 0
+    eval_loss = 0
     count = 0
     for batch in tqdm(dataloader, leave=False):
         image, text = batch['image'].to(device), batch['text'].to(device)
         batch_size_image, batch_size_text = image.size(0), text.size(0)
+
         labels_image, labels_text = torch.tensor([_ for _ in range(batch_size_image)]).to(device), torch.tensor([_ for _ in range(batch_size_text)]).to(device)
-
         logits_image, logits_text = model((image, text))
-        for logits, labels, count_loss in zip((logits_image, logits_text), (labels_image, labels_text), (eval_loss_image, eval_loss_text)):
-            loss = criterion(logits, labels)
-            count_loss += loss.item()
 
+        loss = criterion(logits_image, labels_image) + criterion(logits_text, labels_text)
+        
+        eval_loss += loss.item()
         count += 1
 
-    return eval_loss_image / count, eval_loss_text / count
+    return eval_loss / count
