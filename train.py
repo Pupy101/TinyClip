@@ -35,6 +35,7 @@ def train_clip(config):
     best_epoch = 0    
     for stage_name in config.TRAINING_STAGES:
         print(stage_name)
+
         parameters_of_stage = config.TRAINING_STAGES[stage_name]
         if 'freeze' in parameters_of_stage:
             freezed_parameters = parameters_of_stage['freeze']
@@ -44,11 +45,13 @@ def train_clip(config):
             unfreezed_parameters = parameters_of_stage['unfreeze']
             for name_params in unfreezed_parameters:
                 unfreeze_weights(**unfreezed_parameters[name_params])
+
         n_epoch = parameters_of_stage['n_epoch']
-        optimizer = config.OPTIMIZER(
-            lr=parameters_of_stage['lr'],
-            params=parameters_of_stage['params']
-        )
+
+        optimizer_params = {key: parameters_of_stage for key in parameters_of_stage if key in ['lr', 'params', 'base_optimizer']}
+        optimizer = config.OPTIMIZER(**optimizer_params)
+        is_sam_optimizer = True if 'base_optimizer' in optimizer_params else False
+
         for i in range(n_epoch):
             train_loss = train_epoch(model, train_loader, optimizer, criterion, DEVICE)
             valid_loss = eval_epoch(model, valid_loader, criterion, DEVICE)
@@ -63,24 +66,32 @@ def train_clip(config):
     print(f'Best epoch: {best_epoch}\t Valid loss: {min_val_loss}')
 
 
-def train_epoch(model, dataloader, optimizer, criterion, device):
+def train_epoch(model, dataloader, optimizer, criterion, device, is_sam_optimizer=False):
     model.train()
     train_loss = 0
     count = 0
-    for batch in tqdm(dataloader, leave=False):
+    for i, batch in tqdm(enumerate(dataloader), leave=False):
         image, text = batch['image'].to(device), batch['text'].to(device)
         batch_size_image, batch_size_text = image.size(0), text.size(0)
 
         logits_image, logits_text = model((image, text))
         labels_image, labels_text = torch.tensor([_ for _ in range(batch_size_image)]).to(device), torch.tensor([_ for _ in range(batch_size_text)]).to(device)
+        if is_sam_optimizer:
+            loss = criterion(logits_image, labels_image) + criterion(logits_text, labels_text)
+            loss.backward()
+            if i % 2:
+                optimizer.second_step(zero_grad=True)
+            else:
+                optimizer.first_step(zero_grad=True)
+            
+        else:
+            loss = criterion(logits_image, labels_image) + criterion(logits_text, labels_text)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-        loss = criterion(logits_image, labels_image) + criterion(logits_text, labels_text)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        train_loss += loss.item()
-        count += 1
+            train_loss += loss.item()
+            count += 1
 
     return train_loss / count
 

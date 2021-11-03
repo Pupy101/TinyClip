@@ -1,3 +1,5 @@
+import sys
+
 from typing import Any, Dict, Union
 from collections import OrderedDict
 
@@ -7,6 +9,10 @@ from transformers import DistilBertTokenizer
 from model import CLIP
 from utils import augmentations
 
+# For using SAM https://github.com/davda54/sam
+sys.path.append('/content/sam')
+
+from sam import SAM
 
 
 class Config:
@@ -42,7 +48,7 @@ class Config:
 
     PATH_TO_WEIGHTS: Union[str, None] = None
 
-    OPTIMIZER: nn.Module = optim.AdamW
+    OPTIMIZER: nn.Module = SAM
 
     CRITERION = nn.CrossEntropyLoss()
 
@@ -54,6 +60,7 @@ class Config:
                     *list(MODEL.matrix_normalize_img_emb.parameters()),
                     *list(MODEL.matrix_normalize_text_emb.parameters())
                 ],
+                'base_optimizer': optim.AdamW,
                 'freeze': {
                     'model_img_emb': {
                         'model': MODEL.model_img_emb,
@@ -69,13 +76,14 @@ class Config:
                 'n_epoch': 5
             },
             'Stage 2': {
-                'lr': 6e-5,
+                'lr': 1e-4,
                 'params': [
                     *list(MODEL.model_img_emb.parameters())[-70:],
                     *list(MODEL.matrix_normalize_img_emb.parameters()),
                     *list(MODEL.model_text_emb.parameters())[-50:],
                     *list(MODEL.matrix_normalize_text_emb.parameters())
                 ],
+                'base_optimizer': optim.AdamW,
                 'unfreeze': {
                     'model_img_emb': {
                         'model': MODEL.model_img_emb,
@@ -89,13 +97,14 @@ class Config:
                 'n_epoch': 10
             },
             'Stage 3': {
-                'lr': 2e-5,
+                'lr': 3e-4,
                 'params': [
                     *list(MODEL.model_img_emb.parameters())[-120:],
                     *list(MODEL.matrix_normalize_img_emb.parameters()),
                     *list(MODEL.model_text_emb.parameters())[-90:],
                     *list(MODEL.matrix_normalize_text_emb.parameters())
                 ],
+                'base_optimizer': optim.AdamW,
                 'unfreeze': {
                     'model_img_emb': {
                         'model': MODEL.model_img_emb,

@@ -7,6 +7,7 @@ import torch
 from os.path import join as join_path
 
 from torch import nn
+from tqdm import tqdm
 
 from utils.augmentations import valid_transform
 
@@ -34,7 +35,7 @@ def inference(config):
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model, classes = config.MODEL.to(DEVICE), classes.to(DEVICE)
     with open(join_path(inference_params['TARGET_DIR'], f'predict_{index_predict_file}.txt'), 'w') as f:
-        for file in os.listdir(inference_params['IMAGES_DIR']):
+        for file in tqdm(os.listdir(inference_params['IMAGES_DIR']), leave=False):
             path_to_image = join_path(inference_params['IMAGES_DIR'], file)
             image = cv2.cvtColor(
                 cv2.imread(path_to_image),
