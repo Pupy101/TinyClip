@@ -20,7 +20,7 @@ class Config:
             ],
         'dir_image': '/content/train2014/train2014',
         'tokenizer': DistilBertTokenizer.from_pretrained('distilbert-base-uncased'),
-        'max_size_seq_len': 70,
+        'max_size_seq_len': 30,
         'transform': {
             'train': augmentations.train_transform,
             'valid': augmentations.valid_transform
@@ -50,10 +50,16 @@ class Config:
         {
             'Stage 1': {
                 'lr': 5e-5,
-                'params': [
-                    *list(MODEL.clf_img.parameters()),
-                    *list(MODEL.clf_text.parameters())
-                    ],
+                'params': {
+                    'image': [
+                        *list(MODEL.matrix_normalize_img_emb.parameters()),
+                        *list(MODEL.logit_scale.parameters())
+                        ],
+                    'text': [
+                        *list(MODEL.matrix_normalize_text_emb.parameters()),
+                        *list(MODEL.logit_scale.parameters())
+                        ]                        
+                },
                 'freeze': {
                     'model_img_emb': {
                         'model': MODEL.model_img_emb,
@@ -70,38 +76,52 @@ class Config:
             },
             'Stage 2': {
                 'lr': 6e-5,
-                'params': [
-                    *list(MODEL.clf_img.parameters()),
-                    *list(MODEL.model_img_emb.parameters())[-200:],
-                    *list(MODEL.clf_text.parameters()),
-                    *list(MODEL.model_text_emb.parameters())[-200:],
+                'params': {
+                    'image': [
+                        *list(MODEL.model_img_emb.parameters())[-70:],
+                        *list(MODEL.matrix_normalize_img_emb.parameters()),
+                        *list(MODEL.logit_scale.parameters())
                     ],
+                    'text': [
+                        *list(MODEL.model_text_emb.parameters())[-50:],
+                        *list(MODEL.matrix_normalize_text_emb.parameters()),
+                        *list(MODEL.logit_scale.parameters())
+                    ]
+                },
                 'unfreeze': {
                     'model_img_emb': {
                         'model': MODEL.model_img_emb,
-                        'first_index_unfreeze': -200
+                        'first_index_unfreeze': -70
                     },
                     'model_text_emb': {
                         'model': MODEL.model_text_emb,
-                        'first_index_unfreeze': -200
+                        'first_index_unfreeze': -50
                     }
                 },
                 'n_epoch': 10
             },
             'Stage 3': {
                 'lr': 2e-5,
-                'params': [
-                    *list(MODEL.clf_img.parameters()),
-                    *list(MODEL.model_img_emb.parameters()),
-                    *list(MODEL.clf_text.parameters()),
-                    *list(MODEL.model_text_emb.parameters()),
+                'params': {
+                    'image': [
+                        *list(MODEL.model_img_emb.parameters())[-120:],
+                        *list(MODEL.matrix_normalize_img_emb.parameters()),
+                        *list(MODEL.logit_scale.parameters())
                     ],
+                    'text': [
+                        *list(MODEL.model_text_emb.parameters())[-90:],
+                        *list(MODEL.matrix_normalize_text_emb.parameters()),
+                        *list(MODEL.logit_scale.parameters())
+                    ]
+                },
                 'unfreeze': {
                     'model_img_emb': {
-                        'model': MODEL.model_img_emb
+                        'model': MODEL.model_img_emb,
+                        'first_index_unfreeze': -120
                     },
                     'model_text_emb': {
-                        'model': MODEL.model_text_emb
+                        'model': MODEL.model_text_emb,
+                        'first_index_unfreeze': -90
                     }
                 },
                 'n_epoch': 15
