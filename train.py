@@ -76,19 +76,18 @@ def train_epoch(model, dataloader, optimizer, criterion, device, is_sam_optimize
 
         labels_image, labels_text = torch.tensor([_ for _ in range(batch_size_image)]).to(device), torch.tensor([_ for _ in range(batch_size_text)]).to(device)
         if is_sam_optimizer:
-            mean_loss = 0
-            logits_image, logits_text = model((image, text))
-            loss = criterion(logits_image, labels_image) + criterion(logits_text, labels_text)
-            loss.backward()
-            optimizer.first_step(zero_grad=True)
-            mean_loss += loss.item()
+            def closure():
+                logits_image, logits_text = model((image, text))
+                loss = criterion(logits_image, labels_image) + criterion(logits_text, labels_text)
+                loss.backward()
+                return loss
 
             logits_image, logits_text = model((image, text))
             loss = criterion(logits_image, labels_image) + criterion(logits_text, labels_text)
-            optimizer.second_step(zero_grad=True)
-            mean_loss += loss.item()
-            
-            train_loss += mean_loss / 2
+            loss.backward()
+            optimizer.step(closure)
+            optimizer.zero_grad()
+            train_loss += loss.item()
         else:
             logits_image, logits_text = model((image, text))
             loss = criterion(logits_image, labels_image) + criterion(logits_text, labels_text)

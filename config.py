@@ -123,8 +123,8 @@ class Config:
     PATH_TO_SAVE_MODEL_WEIGHTS: str = './train_result'
 
     INFERENCE_PARAMS: Dict[str, Any] = {
-        'TARGET_DIR': 'path/to/target/ddir',
-        'IMAGES_DIR': 'path/to/images',
+        'TARGET_DIR': '/content/CLIP/test',
+        'IMAGES_DIR': '/content/CLIP/predict',
         'TOKENIZER': DistilBertTokenizer.from_pretrained('distilbert-base-uncased'),
         'CLASSES': [
             'Dog',
