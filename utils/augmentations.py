@@ -2,6 +2,7 @@ import albumentations as A
 
 from albumentations.pytorch import ToTensorV2
 
+# augmentations for train part
 train_transform = A.Compose(
     [
         A.SmallestMaxSize(max_size=224),
@@ -19,6 +20,7 @@ train_transform = A.Compose(
     ]
 )
 
+# augmentations for valid part
 valid_transform = A.Compose(
     [
         A.SmallestMaxSize(max_size=224),
