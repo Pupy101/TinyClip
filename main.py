@@ -1,5 +1,4 @@
-from train import train_clip
-from inference import inference
+from src import train_clip, inference_clip
 from config import Config as clip_config
 
 
@@ -9,4 +8,4 @@ if __name__ == '__main__':
         train_clip(clip_config)
     elif clip_config.TYPE_USING == 'eval':
         print('Evaluation model')
-        inference(clip_config)
+        inference_clip(clip_config)

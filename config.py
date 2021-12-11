@@ -1,131 +1,82 @@
-import sys
-
-from typing import Any, Dict, Union
+from typing import Any, Dict, Union, Callable
 from collections import OrderedDict
 
 from torch import optim, nn
-from transformers import DistilBertTokenizer
+from transformers import (
+    DistilBertTokenizer,
+    BertTokenizer
+)
 
-from model import CLIP
 from utils import augmentations
-
-# For using SAM https://github.com/davda54/sam
-sys.path.append('/content/sam')
-
-from sam import SAM
 
 
 class Config:
     TYPE_USING: str = 'train'  # or 'eval'
 
-    DATASET_PARAMS: Dict[str, Union[str, int]] = {
+    # for training i use
+    # https://www.kaggle.com/mrviswamitrakaushik/image-captioning-data
+    # otherwise you can use csv if change 'json' to 'csv'
+    DATASET_PARAMS: Dict[str, Union[str, int, Callable]] = {
         'jsons': [
             '/content/caption_datasets/dataset_coco.json',
             '/content/caption_datasets/dataset_flickr30k.json',
             '/content/caption_datasets/dataset_flickr8k.json'
-            ],
+        ],
         'dir_image': '/content/train2014/train2014',
-        'tokenizer': DistilBertTokenizer.from_pretrained('distilbert-base-uncased'),
+        'tokenizer': BertTokenizer.from_pretrained(
+            'bert-base-uncased'
+        ),
         'max_size_seq_len': 30,
-        'transform': {
-            'train': augmentations.train_transform,
-            'valid': augmentations.valid_transform
+        'transforms': {
+            'train': augmentations.train,
+            'valid': augmentations.valid
         }
     }
 
     LOADER_PARAMS: Dict[str, Dict[str, Union[bool, int]]] = {
         'train': {
-            'batch_size': 192,
+            'batch_size': 384,
             'shuffle': True
         },
         'valid': {
-            'batch_size': 192,
+            'batch_size': 384,
             'shuffle': False
         }
     }
 
-    MODEL: nn.Module = CLIP('wide_resnet50', 'distilbert', 1024)
+    MODEL_IMAGE_NAME: str = 'wide_resnet50'
+    MODEL_IMAGE_PARAMETERS: Dict[str, Any] = {
+        'pretrained': True
+    }
+
+    MODEL_TEXT_NAME: str = 'BertForSequenceClassification'
+    MODEL_TEXT_PARAMETERS: Dict[str, Any] = {
+        'pretrained': True,
+        'name_pretrained': 'bert-base-uncased'
+    }
 
     PATH_TO_WEIGHTS: Union[str, None] = None
 
-    OPTIMIZER: nn.Module = SAM
+    NUM_EPOCH: int = 30
+    ACCUMULATE: bool = True
 
-    CRITERION = nn.CrossEntropyLoss()
+    OPTIMIZER: nn.Module = optim.AdamW
+    OPTIMIZER_PARAMS: dict = {
+        'lr': 1e-3
+    }
 
-    TRAINING_STAGES: OrderedDict = OrderedDict(
-        {
-            'Stage 1': {
-                'lr': 5e-5,
-                'params': [
-                    *list(MODEL.matrix_normalize_img_emb.parameters()),
-                    *list(MODEL.matrix_normalize_text_emb.parameters())
-                ],
-                'base_optimizer': optim.AdamW,
-                'freeze': {
-                    'model_img_emb': {
-                        'model': MODEL.model_img_emb,
-                        'last_index_freeze': 0,
-                        'freeze_all_net': True
-                    },
-                    'model_text_emb': {
-                        'model': MODEL.model_text_emb,
-                        'last_index_freeze': 0,
-                        'freeze_all_net': True
-                    }
-                },
-                'n_epoch': 5
-            },
-            'Stage 2': {
-                'lr': 1e-4,
-                'params': [
-                    *list(MODEL.model_img_emb.parameters())[-70:],
-                    *list(MODEL.matrix_normalize_img_emb.parameters()),
-                    *list(MODEL.model_text_emb.parameters())[-50:],
-                    *list(MODEL.matrix_normalize_text_emb.parameters())
-                ],
-                'base_optimizer': optim.AdamW,
-                'unfreeze': {
-                    'model_img_emb': {
-                        'model': MODEL.model_img_emb,
-                        'first_index_unfreeze': -70
-                    },
-                    'model_text_emb': {
-                        'model': MODEL.model_text_emb,
-                        'first_index_unfreeze': -50
-                    }
-                },
-                'n_epoch': 10
-            },
-            'Stage 3': {
-                'lr': 3e-4,
-                'params': [
-                    *list(MODEL.model_img_emb.parameters())[-120:],
-                    *list(MODEL.matrix_normalize_img_emb.parameters()),
-                    *list(MODEL.model_text_emb.parameters())[-90:],
-                    *list(MODEL.matrix_normalize_text_emb.parameters())
-                ],
-                'base_optimizer': optim.AdamW,
-                'unfreeze': {
-                    'model_img_emb': {
-                        'model': MODEL.model_img_emb,
-                        'first_index_unfreeze': -120
-                    },
-                    'model_text_emb': {
-                        'model': MODEL.model_text_emb,
-                        'first_index_unfreeze': -90
-                    }
-                },
-                'n_epoch': 15
-            }
-        }
-    )
+    CRITERION: nn.Module = nn.CrossEntropyLoss
+
+    SCHEDULER_LR = optim.lr_scheduler.OneCycleLR
+    SCHEDULER_LR_PARAMS = {
+        'anneal_strategy': 'cos'
+    }
 
     PATH_TO_SAVE_MODEL_WEIGHTS: str = './train_result'
 
     INFERENCE_PARAMS: Dict[str, Any] = {
         'TARGET_DIR': '/content/CLIP/test',
         'IMAGES_DIR': '/content/CLIP/predict',
-        'TOKENIZER': DistilBertTokenizer.from_pretrained('distilbert-base-uncased'),
         'CLASSES': [
             'Dog',
             'Cat',

@@ -76,7 +76,7 @@ class TextAndImageFromCSV(Dataset):
 
 
 def create_datasets_from_csv(
-        path_to_csv: str,
+        csv: str,
         dir_image: str,
         tokenizer: Callable,
         max_size_seq_len: int,
@@ -97,7 +97,7 @@ def create_datasets_from_csv(
         Tuple with two TextAndImageFromCSV (train and valid)
     """
     if df is None:
-        df = pd.read_csv(path_to_csv, delimiter='|')
+        df = pd.read_csv(csv, delimiter='|')
     df.columns = [x.strip() for x in df.columns]
     for column in df.columns:
         df[column] = df[column].apply(lambda x: x.strip() if isinstance(x, str) else x)
@@ -112,20 +112,20 @@ def create_datasets_from_csv(
     df.sample(frac=1).reset_index(drop=True)
     num_example = df.shape[0]
     train_df, valid_df = df.iloc[:round(0.8*num_example), :], df.iloc[round(0.8*num_example):, :]
-    return (
-        TextAndImageFromCSV(
+    return {
+        'train':TextAndImageFromCSV(
             csv=train_df,
             tokenizer=tokenizer,
             max_size_seq_len=max_size_seq_len,
             transform=transform['train']
         ),
-        TextAndImageFromCSV(
+        'valid': TextAndImageFromCSV(
             csv=valid_df,
             tokenizer=tokenizer,
             max_size_seq_len=max_size_seq_len,
             transform=transform['valid']
         )
-    )
+    }
 
 
 def create_datasets_from_json(
@@ -157,7 +157,10 @@ def create_datasets_from_json(
             filename = image['filename']
             for description in image['sentences']:
                 sentence = description['raw']
-                if not (filename, sentence) in df_file_and_sentence and os.path.exists(join_path(dir_image, filename)):
+                if (
+                    not (filename, sentence) in df_file_and_sentence
+                    and os.path.exists(join_path(dir_image, filename))
+                ):
                     df_file_and_sentence.add((filename, sentence))
                     df['image_name'].append(filename)
                     df['comment'].append(sentence)
