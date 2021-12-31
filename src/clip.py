@@ -21,7 +21,7 @@ class CLIP(nn.Module):
             text_shape: int
     ):
         """
-
+        Method for init CLIP
         :param image_embedding: CNN for embedding image
         :param image_shape: dimension of image embedding
         :param text_embedding: Transform for embedding text
@@ -79,7 +79,7 @@ class CLIP(nn.Module):
         image_features = self._forward_image(image)
         text_features = self._forward_text(text)
 
-        logits_image, logits_text = self._forward_cosine_similarity(
+        logits_image, logits_text = self._cosine_similarity(
             image_features,
             text_features
         )
@@ -90,15 +90,25 @@ class CLIP(nn.Module):
     def inference(
             self,
             image: torch.Tensor,
-            text: torch.Tensor
+            text: torch.Tensor,
+            image_features: Optional[torch.Tensor] = None,
+            text_features: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
         Inference forward CLIP
         :param image: input image
         :param text: input text classes
+        :param image_features: images embedding vectors
+        :param text_features: text embedding vectors
         :return: classes of input images
         """
-        logits_image, _ = self.forward(image, text)
+        if image_features is None:
+            image_features = self._forward_image(image)
+        if text_features is None:
+            text_features = self._forward_text(text)
+        logits_image, _ = self._cosine_similarity(
+            image_features, text_features
+        )
         return torch.argmax(logits_image, dim=1)
 
     @property
@@ -106,7 +116,7 @@ class CLIP(nn.Module):
         return next(iter(self.parameters())).device
 
     @staticmethod
-    def _forward_cosine_similarity(
+    def _cosine_similarity(
             image_features: torch.Tensor,
             text_features: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -147,12 +157,24 @@ def configuration_image_model(
 
 
 class WrapperModelFromHuggingFace(nn.Module):
+    """
+    Class wrapper for models from hugging face
+    """
 
     def __init__(self, hugging_face_model: nn.Module):
+        """
+        Method for init model
+        :param hugging_face_model: torch model from hugging face
+        """
         super().__init__()
         self.model = hugging_face_model
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward method of model
+        :param x: input tensor
+        :return: model logits
+        """
         return self.model(x)['logits']
 
 
