@@ -1,4 +1,4 @@
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import torch
 import transformers
@@ -21,45 +21,44 @@ class CLIP(nn.Module):
             text_shape: int
     ):
         """
-        Initialization model
-            :param image_embedding: name of image embedding net
-            :param text_embedding: name of text embedding net
+
+        :param image_embedding: CNN for embedding image
+        :param image_shape: dimension of image embedding
+        :param text_embedding: Transform for embedding text
+        :param text_shape: dimension of text embedding
         """
         super().__init__()
         # it's need for inference
-        self.__computed_text_embedding = None
-        self.model_image_embedding = image_embedding
-        self.model_text_embedding = text_embedding
+        self.text_model = text_embedding
         # overall dim is 'text_shape'
         if image_shape == text_shape:
-            self.linear_image = nn.Identity()
+            self.image_model = image_embedding
         else:
-            self.linear_image = nn.Linear(
-                in_features=image_shape,
-                out_features=text_shape
+            self.image_model = nn.Sequential(
+                image_embedding,
+                nn.Linear(in_features=image_shape, out_features=text_shape)
             )
 
-    def forward_image_part(self, img: torch.Tensor) -> torch.Tensor:
+    def _forward_image(self, image: torch.Tensor) -> torch.Tensor:
         """
         Forward method image part CLIP
-        :param img: input image
+        :param image: input image
         :return: normalized image embedding
         """
-        image_embedding = self.model_image_embedding(img)
-        reshaped_img_emb = self.linear_image(image_embedding)
-        image_features = reshaped_img_emb / reshaped_img_emb.norm(
+        image_embedding = self.image_model(image)
+        image_features = image_embedding / image_embedding.norm(
             dim=-1,
             keepdim=True
         )
         return image_features
 
-    def forward_text_part(self, text: torch.Tensor) -> torch.Tensor:
+    def _forward_text(self, text: torch.Tensor) -> torch.Tensor:
         """
         Forward method text part CLIP
         :param text: input text description
         :return: normalized text embedding
         """
-        text_embedding = self.model_text_embedding(text)
+        text_embedding = self.text_model(text)
         text_features = text_embedding / text_embedding.norm(
             dim=-1,
             keepdim=True
@@ -68,102 +67,69 @@ class CLIP(nn.Module):
 
     def forward(
             self,
-            vectors: Tuple[torch.Tensor, torch.Tensor],
-            image_features: torch.Tensor = None,
-            text_features: torch.Tensor = None,
-            is_raw_output: bool = False
-    ) -> Union[
-        Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor],
-        Tuple[torch.Tensor, torch.Tensor]
-    ]:
+            image: torch.Tensor,
+            text: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Forward method CLIP model
-        :param vectors: tuple tensors of image and text
-        :param image_features: image embedding
-        :param text_features: text embedding
-        :param is_raw_output: is return all output (logits and embeddings
-        of image and text)
-        :return: logits or logits and embeddings
+        Forward method CLIP
+        :param image: input image
+        :param text: input text description
+        :return: image and text logits
         """
-        img, text = vectors
+        image_features = self._forward_image(image)
+        text_features = self._forward_text(text)
 
-        if image_features is None:
-            image_features = self.forward_image_part(img)
-
-        if text_features is None:
-            text_features = self.forward_text_part(text)
-
-        (
-            logits_image,
-            logits_text
-        ) = forward_cosine_similarity(
+        logits_image, logits_text = self._forward_cosine_similarity(
             image_features,
             text_features
         )
-
-        if is_raw_output:
-            return logits_image, logits_text, image_features, text_features
 
         return logits_image, logits_text
 
     @torch.no_grad()
     def inference(
             self,
-            input_tensor: Tuple[torch.Tensor, torch.Tensor],
-            is_rewrite_classes: bool = False
+            image: torch.Tensor,
+            text: torch.Tensor
     ) -> torch.Tensor:
         """
-        Method for inference CLIP
-        :param input_tensor: tuple of images and text token as torch.tensor
-        :param is_rewrite_classes: model cashing classes from text and ignore text input
-            after one inference. Classes from text will updated If this flag is True
-        :return: classes for images
+        Inference forward CLIP
+        :param image: input image
+        :param text: input text classes
+        :return: classes of input images
         """
-        image, text = input_tensor
-        if (
-                self.__computed_text_embedding is not None
-                and not is_rewrite_classes
-        ):
-            computed_text_embedding = self.__computed_text_embedding
-            logits_image, _ = self.forward(
-                image, text, text_features=computed_text_embedding
-            )
-        else:
-            logits_image, *_, text_features = self.forward(image, text, is_raw_output=True)
-            self.__computed_text_embedding = text_features
+        logits_image, _ = self.forward(image, text)
         return torch.argmax(logits_image, dim=1)
 
     @property
     def device(self):
         return next(iter(self.parameters())).device
 
-
-def forward_cosine_similarity(
-        image_features: torch.Tensor,
-        text_features: torch.Tensor
-) -> Tuple[torch.Tensor, torch.Tensor]:
-    """
-    Function of cosine similarity of image and text vector embedding
-    :param image_features: image embedding
-    :param text_features: text embedding
-    :return: tuple of image and text logits
-    """
-    logits_image = image_features @ text_features.t()
-    logits_text = logits_image.t()
-    return logits_image, logits_text
+    @staticmethod
+    def _forward_cosine_similarity(
+            image_features: torch.Tensor,
+            text_features: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Function of cosine similarity of image and text vector embedding
+        :param image_features: image embedding
+        :param text_features: text embedding
+        :return: tuple of image and text logits
+        """
+        logits_image = image_features @ text_features.t()
+        logits_text = logits_image.t()
+        return logits_image, logits_text
 
 
 def configuration_image_model(
-        name_model: str,
-        *args,
-        **kwargs
+        name_model: str, *args, **kwargs
 ) -> Tuple[nn.Module, int]:
     """
     Function for init cnn model from torchvision.models
     :param name_model: name model from torchvision.models
     :param args: args for init model
     :param kwargs: kwargs for init model
-    :return: cnn model
+    :return: cnn model and it's output vector dimension
     """
     if name_model in models.__dict__:
         try:
@@ -190,7 +156,16 @@ class WrapperModelFromHuggingFace(nn.Module):
         return self.model(x)['logits']
 
 
-def configuration_text_model(name_model: str, *args, **kwargs) -> Tuple[nn.Module, int]:
+def configuration_text_model(
+        name_model: str, *args, **kwargs
+) -> Tuple[nn.Module, int]:
+    """
+    Function for init transformer model from transformers (hugging face)
+    :param name_model: name model from transformers
+    :param args: args for init model
+    :param kwargs: kwargs for init model
+    :return: transformer and it's output vector dimension
+    """
     if name_model in transformers.__dict__:
         try:
             if kwargs['pretrained'] and 'name_pretrained' in kwargs:
@@ -202,7 +177,7 @@ def configuration_text_model(name_model: str, *args, **kwargs) -> Tuple[nn.Modul
             name_last_layer, last_layer = list(model.named_modules())[-1]
             output_shape = last_layer.in_features
             setattr(model, name_last_layer, nn.Identity())
-            return model, output_shape
+            return WrapperModelFromHuggingFace(model), output_shape
         except Exception as err:
             raise ValueError('Please type right text model name') from err
     else:
