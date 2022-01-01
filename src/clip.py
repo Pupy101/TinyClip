@@ -132,7 +132,7 @@ class CLIP(nn.Module):
         :param text_features: text embedding
         :return: tuple of image and text logits
         """
-        logits_image = image_features @ text_features.t()
+        logits_image = (image_features @ text_features.t() + 1) / 2
         logits_text = logits_image.t()
         return logits_image, logits_text
 
