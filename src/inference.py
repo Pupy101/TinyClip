@@ -2,6 +2,7 @@ import os
 import re
 
 import cv2
+import pandas as pd
 import torch
 
 from os.path import join as join_path
@@ -9,10 +10,16 @@ from os.path import join as join_path
 from torch import nn
 from tqdm import tqdm
 
-from utils.augmentations import valid
+from .configurator import Configurator
 
 
 def find_max_predict_index(dir_to_predict, prefix_to_file):
+    """
+    Function for search last prediction and return it index
+    :param dir_to_predict: directory for predict
+    :param prefix_to_file: prefix for file with predictions
+    :return: last index of file with predictions
+    """
     pattern = f'{prefix_to_file}_([0-9]+)'
     files = os.listdir(dir_to_predict)
     max_file_index = 0
@@ -24,36 +31,46 @@ def find_max_predict_index(dir_to_predict, prefix_to_file):
     return max_file_index + 1
 
 
-def inference_clip(config):
-    inference_params = config.INFERENCE_PARAMS
-    os.makedirs(inference_params['TARGET_DIR'], exist_ok=True)
-    classes = inference_params['TOKENIZER'](
-        inference_params['CLASSES'], return_tensors="pt"
-    )['input_ids']
-    index_predict_file = find_max_predict_index(
-        inference_params['TARGET_DIR'], 'predict'
-    )
-    if config.PATH_TO_WEIGHTS is not None:
-        config.MODEL.load_state_dict(torch.load(config.PATH_TO_WEIGHTS))
-    DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model, classes = config.MODEL.to(DEVICE), classes.to(DEVICE)
-    input_images = []
+def inference_clip(configuration: Configurator):
+    parameters = configuration.eval_parameters
+    classes = parameters['classes']
+    config = parameters['config']
+    csv = parameters['csv']
+    loaders = parameters['loaders']
+    model = parameters['model']
+    target_dir = parameters['target_dir']
+    tokenizer = parameters['tokenizer']
+    os.makedirs(target_dir, exist_ok=True)
+    index_predict_file = find_max_predict_index(target_dir, 'predict')
+    if config.PATH_TO_WEIGHTS['PRETRAINED_WEIGHTS'] is not None:
+        model.load_state_dict(
+            torch.load(config.PATH_TO_WEIGHTS['PRETRAINED_WEIGHTS'])
+        )
 
-    for file in tqdm(os.listdir(inference_params['IMAGES_DIR']), leave=False):
-        path_to_image = join_path(inference_params['IMAGES_DIR'], file)
-        image = cv2.cvtColor(
-            cv2.imread(path_to_image),
-            cv2.COLOR_BGR2RGB
+    text = tokenizer(
+        classes, return_tensors="pt", padding=True
+    )['input_ids']
+    DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model, text = config.MODEL.to(DEVICE), text.to(DEVICE)
+
+    images_names = []
+    predicted_classes = []
+    text_features = None
+
+    for batch in loaders['valid']:
+        image, index = batch['image'].to(DEVICE), batch['index'].numpy()
+        output_classes, (_, text_features) = model.inference(
+            image=image, text=text, text_features=text_features,
+            is_raw_output=True
         )
-        input_images.append(
-            valid(image=image)['image'].unsqueeze(0).to(DEVICE)
+        images_names.extend(
+            csv.iloc[index, 0].to_list()
         )
-        if len(input_images) >= config.LOADER_PARAMS['valid']['batch_size']:
-            output = model.inference((
-                torch.cat(input_images, dim=0),
-                classes
-                ))
-            input_images = []
-            index = output.view(-1).tolist()[0]
-    with open(join_path(inference_params['TARGET_DIR'], f'predict_{index_predict_file}.txt'), 'w') as f:    
-        f.write('{} {}\n'.format(inference_params['CLASSES'][index], file))
+        predicted_classes.extend(
+            output_classes.view(-1).cpu().tolist()
+        )
+    prediction = pd.DataFrame({
+        'file_name': images_names,
+        'Class': [classes[i] for i in predicted_classes]
+    })
+    prediction.to_csv(f'predict_{index_predict_file}.csv')
