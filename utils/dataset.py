@@ -40,13 +40,13 @@ class TextAndImageFromCSV(Dataset):
         :return: dict with two keys: image and text
         """
         img = cv2.cvtColor(
-            cv2.imread(self.csv.iloc[0, item]),
+            cv2.imread(self.csv.iloc[item, 0]),
             cv2.COLOR_BGR2RGB
         )
         if self.transform is not None:
             img = self.transform(image=img)['image']
 
-        description = self.csv.iloc[1, item]
+        description = self.csv.iloc[item, 1]
         text = self.tokenizer(
             description,
             return_tensors="pt"
@@ -96,7 +96,7 @@ class ImageFromCSV(Dataset):
         :return: dict with two keys: image and index
         """
         img = cv2.cvtColor(
-            cv2.imread(self.csv.iloc[0, item]),
+            cv2.imread(self.csv.iloc[item, 0]),
             cv2.COLOR_BGR2RGB
         )
         if self.transform is not None:
