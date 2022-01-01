@@ -115,7 +115,7 @@ class Configurator:
         """
         assert self.training, 'Init only in training mode'
         assert hasattr(self, 'model'), 'Please init model before'
-        freeze_weight(self.model.model_text_embedding)
+        freeze_weight(self.model.text_model)
         return self.config.OPTIMIZER(
             self.model.image_model.parameters(),
             **self.config.OPTIMIZER_PARAMS
