@@ -40,18 +40,17 @@ def inference_clip(configuration: Configurator):
     model = parameters['model']
     target_dir = parameters['target_dir']
     tokenizer = parameters['tokenizer']
+    text = tokenizer(
+        classes, return_tensors="pt", padding=True
+    )['input_ids']
+    DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model, text = model.to(DEVICE), text.to(DEVICE)
     os.makedirs(target_dir, exist_ok=True)
     index_predict_file = find_max_predict_index(target_dir, 'predict')
     if config.PATH_TO_WEIGHTS['PRETRAINED_WEIGHTS'] is not None:
         model.load_state_dict(
             torch.load(config.PATH_TO_WEIGHTS['PRETRAINED_WEIGHTS'])
         )
-
-    text = tokenizer(
-        classes, return_tensors="pt", padding=True
-    )['input_ids']
-    DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model, text = config.MODEL.to(DEVICE), text.to(DEVICE)
 
     images_names = []
     predicted_classes = []
@@ -73,4 +72,7 @@ def inference_clip(configuration: Configurator):
         'file_name': images_names,
         'Class': [classes[i] for i in predicted_classes]
     })
-    prediction.to_csv(f'predict_{index_predict_file}.csv')
+    prediction.to_csv(
+        join_path(target_dir, f'predict_{index_predict_file}.csv'),
+        index=False
+    )
