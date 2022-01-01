@@ -15,6 +15,10 @@ from sklearn.model_selection import train_test_split
 # https://www.kaggle.com/adityajn105/flickr30k
 
 
+def check_file_exist(path):
+    return os.path.exists(path)
+
+
 def create_csv_coco(data: dict, directory: Dict[str, str]) -> pd.DataFrame:
     """
     Function for create csv with 2 columns - path to image and text
@@ -34,6 +38,8 @@ def create_csv_coco(data: dict, directory: Dict[str, str]) -> pd.DataFrame:
             path_to_image = path_join(directory['train'], image['filename'])
         else:
             path_to_image = path_join(directory['val'], image['filename'])
+        if not check_file_exist(path_to_image):
+            continue
         path_to_images.extend([path_to_image] * len(text_description))
         text_descriptions.extend(text_description)
     return pd.DataFrame({'image': path_to_images, 'text': text_descriptions})
@@ -54,6 +60,8 @@ def create_csv_flickr(data: dict, directory: str) -> pd.DataFrame:
     for image in images:
         text_description = [_['raw'] for _ in image['sentences']]
         path_to_image = path_join(directory, image['filename'])
+        if not check_file_exist(path_to_image):
+            continue
         path_to_images.extend([path_to_image] * len(text_description))
         text_descriptions.extend(text_description)
     return pd.DataFrame({'image': path_to_images, 'text': text_descriptions})
@@ -127,5 +135,5 @@ if __name__ == '__main__':
     index_train = df.image.isin(train_images)
     index_valid = df.image.isin(valid_images)
     train, valid = df[index_train], df[index_valid]
-    train.to_csv(path_join(args.target_csv, 'train.csv'))
-    valid.to_csv(path_join(args.target_csv, 'valid.csv'))
+    train.to_csv(path_join(args.target_csv, 'train.csv'), index=False)
+    valid.to_csv(path_join(args.target_csv, 'valid.csv'), index=False)
