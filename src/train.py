@@ -29,6 +29,7 @@ def train_clip(configuration: Configurator) -> None:
     os.makedirs(config.PATH_TO_WEIGHTS['PATH_TO_SAVE'], exist_ok=True)
 
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = model.to(DEVICE)
 
     min_val_loss = float('inf')
     best_epoch = 0
@@ -50,7 +51,7 @@ def train_clip(configuration: Configurator) -> None:
             torch.save(
                 model.state_dict(),
                 path_join(
-                    config.PATH_TO_SAVE_MODEL_WEIGHTS,
+                    config.PATH_TO_WEIGHTS['PATH_TO_SAVE'],
                     f'Model_epoch_{best_epoch}.pth'
                 )
             )
@@ -88,7 +89,7 @@ def train_epoch(
         labels_image = torch.tensor(
             [_ for _ in range(batch_size_image)]
         ).to(device)
-        labels_text = labels_image.copy()
+        labels_text = labels_image.clone()
 
         logits_image, logits_text = model(image, text)
         loss = (
@@ -134,7 +135,7 @@ def eval_epoch(
         labels_image = torch.tensor(
             [_ for _ in range(batch_size_image)]
         ).to(device)
-        labels_text = labels_image.copy()
+        labels_text = labels_image.clone()
 
         logits_image, logits_text = model(image, text)
 
