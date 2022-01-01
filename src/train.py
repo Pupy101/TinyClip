@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from .configurator import Configurator
+from utils import create_label
 
 
 def train_clip(configuration: Configurator) -> None:
@@ -84,18 +85,11 @@ def train_epoch(
     count = 0
     for batch in tqdm(dataloader, leave=False):
         image, text = batch['image'].to(device), batch['text'].to(device)
-        batch_size_image = image.size(0)
 
-        labels_image = torch.tensor(
-            [_ for _ in range(batch_size_image)]
-        ).to(device)
-        labels_text = labels_image.clone()
+        labels_image = create_label(batch['index']).to(device)
 
-        logits_image, logits_text = model(image, text)
-        loss = (
-            criterion(logits_image, labels_image)
-            + criterion(logits_text, labels_text)
-        )
+        logits_image, _ = model(image, text)
+        loss = criterion(logits_image, labels_image)
         loss.backward()
         # accumulating
         if not (count + 1) % accumulation or count + 1 == len(dataloader):
@@ -130,19 +124,12 @@ def eval_epoch(
     count = 0
     for batch in tqdm(dataloader, leave=False):
         image, text = batch['image'].to(device), batch['text'].to(device)
-        batch_size_image = image.size(0)
 
-        labels_image = torch.tensor(
-            [_ for _ in range(batch_size_image)]
-        ).to(device)
-        labels_text = labels_image.clone()
+        labels_image = create_label(batch['index']).to(device)
 
-        logits_image, logits_text = model(image, text)
+        logits_image, _ = model(image, text)
 
-        loss = (
-                criterion(logits_image, labels_image)
-                + criterion(logits_text, labels_text)
-        )
+        loss = criterion(logits_image, labels_image)
         
         eval_loss += loss.item()
         count += 1
