@@ -16,11 +16,11 @@ class Config:
 
     LOADER_PARAMS: Dict[str, Dict[str, Union[bool, int]]] = {
         'train': {
-            'batch_size': 384,
+            'batch_size': 120,
             'shuffle': True
         },
         'valid': {
-            'batch_size': 384,
+            'batch_size': 120,
             'shuffle': False
         }
     }
