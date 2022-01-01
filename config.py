@@ -50,7 +50,7 @@ class Config:
         'lr': 1e-3
     }
 
-    CRITERION: nn.Module = nn.CrossEntropyLoss
+    CRITERION: nn.Module = nn.BCELoss
 
     SCHEDULER_LR = optim.lr_scheduler.OneCycleLR
     SCHEDULER_LR_PARAMS = {
