@@ -32,6 +32,10 @@ class TextAndImageFromCSV(Dataset):
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len
         self.transform = transform
+        self.photo_to_index = {
+            file_name: i
+            for i, file_name in enumerate(self.csv.iloc[:, 0].to_list())
+        }
 
     def __getitem__(self, item) -> Dict[str, torch.Tensor]:
         """
@@ -39,8 +43,9 @@ class TextAndImageFromCSV(Dataset):
         :param item: index of item
         :return: dict with two keys: image and text
         """
+        file_name = self.csv.iloc[item, 0]
         img = cv2.cvtColor(
-            cv2.imread(self.csv.iloc[item, 0]),
+            cv2.imread(file_name),
             cv2.COLOR_BGR2RGB
         )
         if self.transform is not None:
@@ -60,7 +65,8 @@ class TextAndImageFromCSV(Dataset):
 
         return {
             'image': img,
-            'text': text
+            'text': text,
+            'index': torch.tensor(self.photo_to_index[file_name]).long()
         }
 
     def __len__(self) -> int:
