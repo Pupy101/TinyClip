@@ -31,13 +31,14 @@ class CLIP(nn.Module):
         # it's need for inference
         self.text_model = text_embedding
         # overall dim is 'text_shape'
-        if image_shape == text_shape:
-            self.image_model = image_embedding
-        else:
-            self.image_model = nn.Sequential(
+        self.image_model = (
+            image_embedding
+            if image_shape == text_shape
+            else nn.Sequential(
                 image_embedding,
                 nn.Linear(in_features=image_shape, out_features=text_shape)
             )
+        )
 
     def _forward_image(self, image: torch.Tensor) -> torch.Tensor:
         """
@@ -193,14 +194,16 @@ def configuration_text_model(
     :param kwargs: kwargs for init model
     :return: transformer and it's output vector dimension
     """
-    if name_model in transformers.__dict__:
+    name_text_models = transformers.__dict__['_class_to_module']
+    if name_model in name_text_models:
+        module = eval(f'transformers.{name_text_models[name_model]}')
         try:
             if kwargs['pretrained'] and 'name_pretrained' in kwargs:
-                model = transformers.__dict__[name_model].from_pretrained(
+                model = getattr(module, name_model).from_pretrained(
                     kwargs['name_pretrained']
                 )
             else:
-                model = transformers.__dict__[name_model](*args, **kwargs)
+                model = getattr(module, name_model)(*args, **kwargs)
             name_last_layer, last_layer = list(model.named_modules())[-1]
             output_shape = last_layer.in_features
             setattr(model, name_last_layer, nn.Identity())
