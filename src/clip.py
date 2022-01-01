@@ -92,7 +92,8 @@ class CLIP(nn.Module):
             image: torch.Tensor,
             text: torch.Tensor,
             image_features: Optional[torch.Tensor] = None,
-            text_features: Optional[torch.Tensor] = None
+            text_features: Optional[torch.Tensor] = None,
+            is_raw_output: Optional[bool] = False
     ) -> torch.Tensor:
         """
         Inference forward CLIP
@@ -100,6 +101,7 @@ class CLIP(nn.Module):
         :param text: input text classes
         :param image_features: images embedding vectors
         :param text_features: text embedding vectors
+        :param is_raw_output: is return also image and text embedding vectors
         :return: classes of input images
         """
         if image_features is None:
@@ -109,7 +111,10 @@ class CLIP(nn.Module):
         logits_image, _ = self._cosine_similarity(
             image_features, text_features
         )
-        return torch.argmax(logits_image, dim=1)
+        classes = torch.argmax(logits_image, dim=1)
+        if is_raw_output:
+            return classes, (image_features, text_features)
+        return classes
 
     @property
     def device(self):
