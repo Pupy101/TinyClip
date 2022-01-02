@@ -21,7 +21,7 @@ class Config:
         },
         'valid': {
             'batch_size': 120,
-            'shuffle': False
+            'shuffle': True
         }
     }
 
