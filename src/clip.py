@@ -84,8 +84,7 @@ class CLIP(nn.Module):
             image_features,
             text_features
         )
-
-        return logits_image, logits_text
+        return logits_image, logits_text, (image_features, text_features)
 
     @torch.no_grad()
     def inference(
