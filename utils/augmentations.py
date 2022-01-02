@@ -4,7 +4,7 @@ from albumentations.pytorch import ToTensorV2
 
 # augmentations for train
 train = A.Compose([
-    A.SmallestMaxSize(max_size=250),
+    A.SmallestMaxSize(max_size=240),
     A.RandomCrop(height=224, width=224),
     A.HorizontalFlip(),
     A.CoarseDropout(),
@@ -20,7 +20,7 @@ train = A.Compose([
 
 # augmentations for valid
 valid = A.Compose([
-    A.SmallestMaxSize(max_size=224),
+    A.SmallestMaxSize(max_size=240),
     A.CenterCrop(height=224, width=224),
     A.Normalize(),
     ToTensorV2()
