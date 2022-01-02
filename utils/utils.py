@@ -12,9 +12,15 @@ def freeze_weight(model: nn.Module):
         weight.requires_grad = False
 
 
-def create_label(index_of_pairs: torch.Tensor) -> torch.Tensor:
+def create_label_from_index(index_of_pairs: torch.Tensor) -> torch.Tensor:
     size = len(index_of_pairs)
     label = torch.zeros((size, size))
     for i in range(size):
         label[i, :] = index_of_pairs == index_of_pairs[i]
     return label
+
+
+def create_label_from_text(text_vectors: torch.Tensor) -> torch.Tensor:
+    text_vectors = text_vectors.clone().detach()  # batch size x vector dim
+    simularity = text_vectors @ text_vectors.t()
+    return simularity
