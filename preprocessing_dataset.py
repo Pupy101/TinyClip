@@ -128,12 +128,17 @@ if __name__ == '__main__':
 
     grouped = df.groupby(by='image', as_index=False).agg({'text': 'count'})
 
+    one_images = grouped['image'][grouped.text == 1]
+
     # train/valid split
-    train_images, valid_images = train_test_split(
-        grouped.image, random_state=42, train_size=0.8, stratify=grouped.images
+    train, valid = train_test_split(
+        df[~df.image.isin(one_images)], random_state=42, train_size=0.78, stratify=df[~df.image.isin(one_images)].image
     )
-    index_train = df.image.isin(train_images)
-    index_valid = df.image.isin(valid_images)
-    train, valid = df[index_train], df[index_valid]
+    train = pd.concat([
+        train,
+        df[df.image.isin(one_images)]
+    ])
+    print(f'Train samples is {train.shape[0]}')
+    print(f'Eval samples is {valid.shape[0]}')
     train.to_csv(path_join(args.target_csv, 'train.csv'), index=False)
     valid.to_csv(path_join(args.target_csv, 'valid.csv'), index=False)
