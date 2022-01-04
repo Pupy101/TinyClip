@@ -130,7 +130,7 @@ if __name__ == '__main__':
 
     # train/valid split
     train_images, valid_images = train_test_split(
-        grouped.image, random_state=42, train_size=0.8, stratify=grouped.text
+        grouped.image, random_state=42, train_size=0.8, stratify=grouped.images
     )
     index_train = df.image.isin(train_images)
     index_valid = df.image.isin(valid_images)
