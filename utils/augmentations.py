@@ -13,11 +13,10 @@ train = A.Compose([
         contrast_limit=0.2,
         p=0.3
     ),
-    A.MotionBlur(),
+    A.Blur(),
     A.CLAHE(),
     A.GaussNoise(),
     A.ChannelDropout(),
-    A.ElasticTransform(p=0.5),
     A.Rotate(limit=15),
     A.Normalize(),
     ToTensorV2()
