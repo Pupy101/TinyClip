@@ -1,7 +1,9 @@
 from typing import Any, Dict, Union
 
 from torch import optim, nn
-from transformers import BertTokenizer
+from transformers import AutoTokenizer
+
+from utils import FocalLoss
 
 
 class Config:
@@ -11,7 +13,7 @@ class Config:
         'train': '/content/train.csv',
         'valid': '/content/valid.csv'
     }
-    TOKENIZER = BertTokenizer.from_pretrained('bert-base-uncased')
+    TOKENIZER = AutoTokenizer.from_pretrained('cointegrated/LaBSE-en-ru')
     MAX_SEQUENCE_LEN = 20
 
     LOADER_PARAMS: Dict[str, Dict[str, Union[bool, int]]] = {
@@ -30,10 +32,10 @@ class Config:
         'pretrained': True
     }
 
-    MODEL_TEXT_NAME: str = 'BertForSequenceClassification'
+    MODEL_TEXT_NAME: str = 'AutoModel'
     MODEL_TEXT_PARAMETERS: Dict[str, Any] = {
         'pretrained': True,
-        'name_pretrained': 'bert-base-uncased'
+        'name_pretrained': 'cointegrated/LaBSE-en-ru'
     }
 
     PATH_TO_WEIGHTS: Dict[str, Union[str, None]] = {
@@ -50,7 +52,7 @@ class Config:
         'lr': 1e-3
     }
 
-    CRITERION: nn.Module = nn.BCELoss
+    CRITERION: nn.Module = FocalLoss
 
     SCHEDULER_LR = optim.lr_scheduler.OneCycleLR
     SCHEDULER_LR_PARAMS = {
