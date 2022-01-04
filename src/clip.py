@@ -1,6 +1,7 @@
 from typing import Optional, Tuple, Union
 
 import torch
+import numpy as np
 import transformers
 
 from torch import nn
@@ -39,6 +40,7 @@ class CLIP(nn.Module):
                 nn.Linear(in_features=image_shape, out_features=text_shape)
             )
         )
+        self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
 
     def _forward_image(self, image: torch.Tensor) -> torch.Tensor:
         """
@@ -120,8 +122,8 @@ class CLIP(nn.Module):
     def device(self):
         return next(iter(self.parameters())).device
 
-    @staticmethod
     def _cosine_similarity(
+            self,
             image_features: torch.Tensor,
             text_features: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -131,7 +133,8 @@ class CLIP(nn.Module):
         :param text_features: text embedding
         :return: tuple of image and text logits
         """
-        logits_image = (image_features @ text_features.t() + 1) / 2
+        logit_scale = self.logit_scale.exp()
+        logits_image = logit_scale * image_features@text_features.t()
         logits_text = logits_image.t()
         return logits_image, logits_text
 
@@ -180,7 +183,7 @@ class WrapperModelFromHuggingFace(nn.Module):
         :param x: input tensor
         :return: model logits
         """
-        return self.model(x)['logits']
+        return self.model(x).pooler_output
 
 
 def configuration_text_model(
@@ -203,9 +206,12 @@ def configuration_text_model(
                 )
             else:
                 model = getattr(module, name_model)(*args, **kwargs)
-            name_last_layer, last_layer = list(model.named_modules())[-1]
-            output_shape = last_layer.in_features
-            setattr(model, name_last_layer, nn.Identity())
+            # find last dimension
+            for i in range(10):
+                _, last_layer = list(model.named_modules())[-i]
+                if hasattr(last_layer, 'in_features'):
+                    output_shape = last_layer.in_features
+                    break
             return WrapperModelFromHuggingFace(model), output_shape
         except Exception as err:
             raise ValueError('Please type right text model name') from err
