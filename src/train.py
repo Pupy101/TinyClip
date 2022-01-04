@@ -89,7 +89,7 @@ def train_epoch(
         logits, _, (_, text_features) = model(image, text)
 
         labels_index = create_label_from_index(batch['index']).to(device)
-        labels_features = (create_label_from_text(text_features) + 1) / 2
+        labels_features = create_label_from_text(text_features)
         labels = (labels_index + labels_features) / 2
 
         loss = criterion(logits, labels)
@@ -131,7 +131,7 @@ def eval_epoch(
         logits, _, (_, text_features) = model(image, text)
 
         labels_index = create_label_from_index(batch['index']).to(device)
-        labels_features = (create_label_from_text(text_features) + 1) / 2
+        labels_features = create_label_from_text(text_features)
         labels = (labels_index + labels_features) / 2
 
         loss = criterion(logits, labels)
