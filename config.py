@@ -18,16 +18,16 @@ class Config:
 
     LOADER_PARAMS: Dict[str, Dict[str, Union[bool, int]]] = {
         'train': {
-            'batch_size': 120,
+            'batch_size': 840,
             'shuffle': True
         },
         'valid': {
-            'batch_size': 120,
+            'batch_size': 840,
             'shuffle': True
         }
     }
 
-    MODEL_IMAGE_NAME: str = 'wide_resnet50_2'
+    MODEL_IMAGE_NAME: str = 'mobilenet_v3_small'
     MODEL_IMAGE_PARAMETERS: Dict[str, Any] = {
         'pretrained': True
     }
@@ -40,7 +40,7 @@ class Config:
 
     PATH_TO_WEIGHTS: Dict[str, Union[str, None]] = {
         'PRETRAINED_WEIGHTS': None,
-        'PATH_TO_SAVE': './train/weights'
+        'PATH_TO_SAVE': './training/weights'
     }
 
     NUM_EPOCH: int = 30
