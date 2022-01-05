@@ -22,5 +22,5 @@ def create_label_from_index(index_of_pairs: torch.Tensor) -> torch.Tensor:
 
 def create_label_from_text(text_vectors: torch.Tensor) -> torch.Tensor:
     text_vectors = text_vectors.clone().detach()  # batch size x vector dim
-    simularity = text_vectors @ text_vectors.t()
-    return (simularity > 0.5).float()
+    similarity = text_vectors @ text_vectors.t()
+    return (similarity > 0.5).float()
