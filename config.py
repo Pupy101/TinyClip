@@ -5,6 +5,7 @@ from torchvision import models
 from transformers import AutoTokenizer, AutoModel
 
 from utils import FocalLoss
+from src import WrapperModelFromHuggingFace
 
 
 class Config:
@@ -38,8 +39,8 @@ class Config:
     TOKENIZER: Callable = AutoTokenizer.from_pretrained('cointegrated/LaBSE-en-ru')
     MAX_SEQUENCE_LEN: int = 20
 
-    MODEL_TEXT: nn.Module = AutoModel.from_pretrained(
-        'cointegrated/LaBSE-en-ru',
+    MODEL_TEXT: nn.Module = WrapperModelFromHuggingFace(
+        AutoModel.from_pretrained('cointegrated/LaBSE-en-ru'),
     )
 
     PATH_TO_WEIGHT: Dict[str, Union[None, str]] = {
