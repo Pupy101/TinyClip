@@ -1,7 +1,8 @@
-from typing import Any, Dict, Union
+from typing import Callable, Dict, List, Union
 
 from torch import optim, nn
-from transformers import AutoTokenizer
+from torchvision import models
+from transformers import AutoTokenizer, AutoModel
 
 from utils import FocalLoss
 
@@ -9,58 +10,59 @@ from utils import FocalLoss
 class Config:
     TYPE_USING: str = 'train'  # or 'eval'
 
-    DATASETS_CSV = {
+    DATASETS_CSV: Dict[str, str] = {
         'train': '/content/train.csv',
-        'valid': '/content/valid.csv'
+        'valid': '/content/valid.csv',
     }
-    TOKENIZER = AutoTokenizer.from_pretrained('cointegrated/LaBSE-en-ru')
-    MAX_SEQUENCE_LEN = 20
 
     LOADER_PARAMS: Dict[str, Dict[str, Union[bool, int]]] = {
         'train': {
             'batch_size': 840,
-            'shuffle': True
+            'shuffle': True,
         },
         'valid': {
             'batch_size': 840,
-            'shuffle': True
+            'shuffle': True,
         }
     }
 
-    MODEL_IMAGE_NAME: str = 'mobilenet_v3_small'
-    MODEL_IMAGE_PARAMETERS: Dict[str, Any] = {
-        'pretrained': True
-    }
+    MODEL_IMAGE: nn.Module = models.mobilenet_v3_small(pretrained=True)
+    # change last part of pretrained on imagenet model
+    MODEL_IMAGE.classifier = nn.Sequential(
+        nn.Linear(in_features=576, out_features=2048),
+        nn.LeakyReLU(negative_slope=0.1),
+        nn.Linear(in_features=2048, out_features=768),
+        nn.LayerNorm(normalized_shape=768),
+    )
 
-    MODEL_TEXT_NAME: str = 'AutoModel'
-    MODEL_TEXT_PARAMETERS: Dict[str, Any] = {
-        'pretrained': True,
-        'name_pretrained': 'cointegrated/LaBSE-en-ru'
-    }
+    TOKENIZER: Callable = AutoTokenizer.from_pretrained('cointegrated/LaBSE-en-ru')
+    MAX_SEQUENCE_LEN: int = 20
 
-    PATH_TO_WEIGHTS: Dict[str, Union[str, None]] = {
-        'PRETRAINED_WEIGHTS': None,
-        'PATH_TO_SAVE': './training/weights'
+    MODEL_TEXT: nn.Module = AutoModel.from_pretrained(
+        'cointegrated/LaBSE-en-ru',
+    )
+
+    PATH_TO_WEIGHT: Dict[str, Union[None, str]] = {
+        'PRETRAINED': None,
+        'SAVING': './training/weights',
     }
 
     NUM_EPOCH: int = 30
-    ACCUMULATE: bool = True
-    ACCUMULATION_STEPS: int = 2
+    ACCUMULATION: int = 2  # set 1 if accumulation doesn't need
 
-    OPTIMIZER: nn.Module = optim.AdamW
-    OPTIMIZER_PARAMS: dict = {
-        'lr': 1e-3
-    }
+    OPTIMIZER: optim.Optimizer = optim.AdamW
+    OPTIMIZER_PARAMS: Dict[str, float] = {'lr': 3e-4}
 
     CRITERION: nn.Module = FocalLoss
-
-    SCHEDULER_LR = optim.lr_scheduler.OneCycleLR
-    SCHEDULER_LR_PARAMS = {
-        'anneal_strategy': 'cos'
+    CRITERION_PARAMS: Dict[str, Union[int, float]] = {
+        'alpha': 0.2, 'gamma': 2,
     }
 
-    INFERENCE_PARAMS: Dict[str, Any] = {
-        'TARGET_DIR': '/content/CLIP/test',
-        'IMAGES_DIR': '/content/CLIP/predict',
-        'CLASSES': ['Dog', 'Cat', 'Human', 'Car']
+    SCHEDULER_LR = optim.lr_scheduler.OneCycleLR  # other scheduler or None
+    SCHEDULER_LR_PARAMS = {'anneal_strategy': 'cos'}
+
+    INFERENCE_PARAMS: Dict[str, Union[str, List[str]]] = {
+        'PREDICTION_DIR': '/content/CLIP/prediction',
+        'IMAGES_DIR': '/content/CLIP/testing',
+        'CLASSES': ['Dog', 'Cat', 'Human', 'Car'],
     }
