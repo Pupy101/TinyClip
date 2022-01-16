@@ -1,4 +1,5 @@
-from src import Configurator, inference_clip, train_clip
+from src import Configurator
+from src.run import inference, train
 
 from config import Config
 
@@ -7,9 +8,9 @@ if __name__ == '__main__':
     configuration = Configurator(Config)
     if Config.TYPE_USING == 'train':
         print('Training model:')
-        train_clip(configuration)
+        train(configuration)
     elif Config.TYPE_USING == 'eval':
         print('Evaluation model:')
-        inference_clip(configuration)
+        inference(configuration)
     else:
         raise ValueError('Strange type of using CLIP')

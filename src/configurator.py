@@ -7,18 +7,16 @@ import pandas as pd
 from torch import nn, optim
 from torch.utils.data import Dataset, DataLoader
 
-import config
-
-from .clip import (
-    configuration_image_model,
-    configuration_text_model,
-    CLIP
+from .model import (
+    CLIP,
+    VisionPartCLIP,
 )
-from utils import (
+from .utils import (
     augmentations,
     freeze_weight,
     ImageFromCSV,
-    TextAndImageFromCSV
+    TextAndImageFromCSV,
+    TextAndImageCachedTextFromCSV,
 )
 
 
@@ -28,13 +26,16 @@ class Configurator:
     parameters for train or eval mode
     """
 
-    def __init__(self, config: config.Config):
+    def __init__(self, config):
         """
         Method for init training parameters
         :param config: config of training
         """
+        type_using = config.TYPE_USING.lower().strip()
+        assert type_using in ['train', 'eval'], 'Incorrect type of using'
         self.config = config
-        self.training = config.TYPE_USING == 'train'
+        self.device = torch.device(config.DEVICE)
+        self.training = type_using == 'train'
         self.model = self._init_model()
         self.loaders = self._init_loaders()
         if config.TYPE_USING == 'train':
@@ -49,13 +50,17 @@ class Configurator:
         :return: dict with parameters
         """
         assert self.training, 'Use only for training'
+        assert self.config.ACCUMULATION > 0, 'Accumulation must be more than 0'
         return {
-            'config': self.config,
+            'accumulation': self.config.ACCUMULATION,
             'criterion': self.criterion,
+            'device': self.device,
             'loaders': self.loaders,
             'model': self.model,
+            'n_epoch': self.config.NUM_EPOCH,
             'optimizer': self.optimizer,
-            'scheduler': self.scheduler
+            'save_dir': self.config.PATH_TO_WEIGHT['SAVING'],
+            'scheduler': self.scheduler,
         }
 
     @property
@@ -68,12 +73,12 @@ class Configurator:
         INFERENCE_PARAMS = self.config.INFERENCE_PARAMS
         return {
             'classes': INFERENCE_PARAMS['CLASSES'],
-            'config': self.config,
-            'csv': self._csv,
+            'csv': self.csv,
+            'device': self.device,
             'loaders': self.loaders,
             'model': self.model,
             'target_dir': INFERENCE_PARAMS['TARGET_DIR'],
-            'tokenizer': self.config.TOKENIZER
+            'tokenizer': self.config.TOKENIZER,
         }
 
     def _init_model(self) -> nn.Module:
@@ -81,25 +86,15 @@ class Configurator:
         Method for init model
         :return: CLIP
         """
-        image_model, image_model_shape = configuration_image_model(
-            self.config.MODEL_IMAGE_NAME,
-            **self.config.MODEL_IMAGE_PARAMETERS
-        )
-        text_model, text_model_shape = configuration_text_model(
-            self.config.MODEL_TEXT_NAME,
-            **self.config.MODEL_TEXT_PARAMETERS
-        )
-        model = CLIP(
-            image_model, image_model_shape,
-            text_model, text_model_shape
-        )
+        vision_part = VisionPartCLIP(self.config.MODEL_VISION)
+        model = CLIP(vision_part, self.config.MODEL_TEXT)
         if self.config.PATH_TO_WEIGHTS['PRETRAINED_WEIGHTS']:
             weights = torch.load(
                 self.config.PATH_TO_WEIGHTS['PRETRAINED_WEIGHTS']
             )
             model.load_state_dict(weights)
-        return model
-    
+        return model.to(self.device)
+
     def _init_criterion(self) -> nn.Module:
         """
         Method for create criterion
@@ -117,7 +112,7 @@ class Configurator:
         assert hasattr(self, 'model'), 'Please init model before'
         freeze_weight(self.model.text_model)
         return self.config.OPTIMIZER(
-            self.model.image_model.parameters(),
+            self.model.vision_clip_part.parameters(),
             **self.config.OPTIMIZER_PARAMS
         )
 
@@ -135,13 +130,18 @@ class Configurator:
                     if key in augmentations
                     else augmentations['valid']
                 )
-                datasets[key] = TextAndImageFromCSV(
+                dataset_initializer = (
+                    TextAndImageCachedTextFromCSV
+                    if self.config.DATASET_WITH_CACHED_TEXT
+                    else TextAndImageFromCSV
+                )
+                datasets[key] = dataset_initializer(
                     csv=pd.read_csv(datasets_csv[key]),
                     tokenizer=self.config.TOKENIZER,
                     max_seq_len=self.config.MAX_SEQUENCE_LEN,
-                    transform=transformation
+                    transform=transformation,
                 )
-        elif self.config.TYPE_USING == 'eval':
+        else:
             EVAL_DIRS = self.config.INFERENCE_PARAMS
             csv = pd.DataFrame({
                 'image': [
@@ -149,7 +149,7 @@ class Configurator:
                     for img in os.listdir(EVAL_DIRS['IMAGES_DIR'])
                 ]
             })
-            self._csv = csv
+            self.csv = csv
             datasets['valid'] = ImageFromCSV(
                 csv=csv, transform=augmentations['valid']
             )
@@ -176,9 +176,8 @@ class Configurator:
         if not self.config.SCHEDULER_LR:
             return None
         len_loader = (
-            len(self.loaders['train']) // self.config.ACCUMULATION_STEPS + 1
-            if self.config.ACCUMULATE 
-            else len(self.loaders['train']) + 1
+                len(self.loaders['train']) //
+                self.config.ACCUMULATION_STEPS + 1
         )
         return self.config.SCHEDULER_LR(
             self.optimizer,

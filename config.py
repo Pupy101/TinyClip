@@ -4,8 +4,8 @@ from torch import optim, nn
 from torchvision import models
 from transformers import AutoTokenizer, AutoModel
 
-from utils import FocalLoss
-from src import WrapperModelFromHuggingFace
+from src.utils import FocalLoss
+from src.model import WrapperModelFromHuggingFace
 
 
 class Config:
@@ -15,6 +15,7 @@ class Config:
         'train': '/content/train.csv',
         'valid': '/content/valid.csv',
     }
+    DATASET_WITH_CACHED_TEXT: bool = True
 
     LOADER_PARAMS: Dict[str, Dict[str, Union[bool, int]]] = {
         'train': {
@@ -27,17 +28,17 @@ class Config:
         }
     }
 
-    MODEL_IMAGE: nn.Module = models.mobilenet_v3_small(pretrained=True)
+    MODEL_VISION: nn.Module = models.mobilenet_v3_small(pretrained=True)
     # change last part of pretrained on imagenet model
-    MODEL_IMAGE.classifier = nn.Sequential(
+    MODEL_VISION.classifier = nn.Sequential(
         nn.Linear(in_features=576, out_features=2048),
         nn.LeakyReLU(negative_slope=0.1),
         nn.Linear(in_features=2048, out_features=768),
         nn.LayerNorm(normalized_shape=768),
     )
 
-    TOKENIZER: Callable = AutoTokenizer.from_pretrained('cointegrated/LaBSE-en-ru')
     MAX_SEQUENCE_LEN: int = 20
+    TOKENIZER: Callable = AutoTokenizer.from_pretrained('cointegrated/LaBSE-en-ru')
 
     MODEL_TEXT: nn.Module = WrapperModelFromHuggingFace(
         AutoModel.from_pretrained('cointegrated/LaBSE-en-ru'),
@@ -48,6 +49,7 @@ class Config:
         'SAVING': './training/weights',
     }
 
+    DEVICE: str = 'cuda'
     NUM_EPOCH: int = 30
     ACCUMULATION: int = 2  # set 1 if accumulation doesn't need
 
