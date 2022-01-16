@@ -63,8 +63,8 @@ def get_annotation_from_parent_model(
             for updated_attr in changed_attrs:
                 try:
                     setattr(child, updated_attr, getattr(child, updated_attr))
-                finally:
-                    print(f'{updated_attr} are skipped')
+                except AttributeError:
+                    print(f'{updated_attr} of {child} are skipped')
             methods_and_attrs[depth + 1].extend([
                 (getattr(parent, attr), getattr(child, attr))
                 for attr in intersection_attrs if not attr.startswith('__')
