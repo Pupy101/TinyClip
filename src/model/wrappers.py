@@ -17,9 +17,10 @@ class WrapperModelFromHuggingFace(nn.Module):
 
     def __init__(self, hugging_face_model: nn.Module):
         """
-        Method for init model
+        Method for init wrapped model
 
-        :param hugging_face_model: torch model from hugging face
+        Args:
+            hugging_face_model: torch model from hugging face
         """
         super().__init__()
         self.model = hugging_face_model
@@ -29,9 +30,11 @@ class WrapperModelFromHuggingFace(nn.Module):
         """
         Forward method of model
 
-        :param args:
-        :param kwargs:
-        :return:
+        Args:
+            *args: args for model
+            **kwargs: kwargs for model
+        Returns:
+            embedding of input text description
         """
         return self.model(*args, **kwargs).pooler_output
 
@@ -40,14 +43,17 @@ def get_annotation_from_parent_model(
         child_model: nn.Module,
         parent_model: nn.Module,
         depth_recursion: int = 1
-):
+) -> None:
     """
     Function for getting describing attributes from parent model
 
-    :param child_model:
-    :param parent_model:
-    :param depth_recursion:
-    :return:
+    Args:
+        child_model: child or wrapped model
+        parent_model: parent model
+        depth_recursion: depth recursion
+
+    Returns:
+        None
     """
     method_from_parent: Set[str] = {
         '__annotations__', '__doc__', '__module__', '__name__', '__qualname__'
@@ -61,8 +67,14 @@ def get_annotation_from_parent_model(
             intersection_attrs = parent_attrs & child_attrs
             changed_attrs = intersection_attrs & method_from_parent
             for updated_attr in changed_attrs:
-                setattr(child, updated_attr, getattr(child, updated_attr))
+                try:
+                    setattr(child, updated_attr, getattr(parent, updated_attr))
+                except AttributeError:
+                    print(
+                        f'Can\'t set attribute{updated_attr} from'
+                        f' {parent.__name__} to {child.__name__}'
+                    )
             methods_and_attrs[depth + 1].extend([
                 (getattr(parent, attr), getattr(child, attr))
-                for attr in intersection_attrs if not attr.startswith('__')
+                for attr in intersection_attrs if not attr.startswith('_')
             ])
