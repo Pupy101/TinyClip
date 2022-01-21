@@ -21,8 +21,11 @@ def train(configuration: Configurator) -> None:
     """
     Function for training clip with the specified configuration
 
-    :param configuration: configuration of training
-    :return: None
+    Args:
+        configuration: configuration of model, and it's using parameters
+
+    Returns:
+        None
     """
     parameters = configuration.train_parameters
     accumulation = parameters['accumulation']
@@ -55,13 +58,13 @@ def train(configuration: Configurator) -> None:
             best_epoch = i + 1
             torch.save(
                 model.state_dict(),
-                path_join(
-                    config.PATH_TO_WEIGHTS['PATH_TO_SAVE'],
-                    f'Model_epoch_{best_epoch}.pth'
-                )
+                path_join(save_dir, f'Model_epoch_{best_epoch}.pth')
             )
-        print(f'Epoch {i+1}\tTrain loss: {train_loss:<10.4f}\tValid image loss: {val_loss:<10.4f}')
-    print(f'Best epoch: {best_epoch}\t Valid loss: {min_val_loss}')
+        print(
+            f'Epoch {i+1:<3}\t'
+            f'Train loss: {train_loss:<10.4f}\tValid loss: {val_loss:<10.4f}'
+        )
+    print(f'Best epoch: {best_epoch}\t Valid loss: {min_val_loss:<10.4f}')
 
 
 def train_epoch(
@@ -72,35 +75,38 @@ def train_epoch(
         device: Union[str, torch.device],
         scheduler: Optional[Any] = None,
         accumulation: Optional[int] = None
-):
+) -> Union[int, float]:
     """
     Function for train model on one epoch
-    :param model: CLIP
-    :param dataloader: torch DataLoader
-    :param criterion: criterion for training
-    :param optimizer: optimizer for training
-    :param device: device for training
-    :param scheduler: scheduler or None
-    :param accumulation: count accumulation steps or None
-    :return: mean train loss on epoch
+
+    Args:
+        model: CLIP
+        dataloader: torch DataLoader
+        criterion: criterion for training
+        optimizer: optimizer for training
+        device: device for training
+        scheduler: scheduler or None
+        accumulation: count accumulation steps or None
+
+    Returns:
+        mean train loss on epoch
     """
     model.train()
-    train_loss = 0
-    count = 0
+    train_loss, count = 0, 0
     for batch in tqdm(dataloader, leave=False):
         image, text = batch['image'].to(device), batch['text'].to(device)
-        text_features = None
-        if 'text_features' in batch:
-            text_features = batch['text_features'].to(device)
+        text_features = batch.get('text_features', None)
+        if text_features is not None:
+            text_features = text_features.to(device)
 
-        logits_img, logits_text, (_, text_embedding) = model(
+        img_logits, text_logits, (_, text_embedding) = model(
             image=image, text=text, text_features=text_features
         )
 
-        labels_img = create_label(text_embedding)
-        labels_text = labels_img.clone().t()
+        img_labels = create_label(text_embedding)
+        text_labels = img_labels.clone().t()
 
-        loss = criterion(logits_img, labels_img) + criterion(logits_text, labels_text)
+        loss = criterion(img_logits, img_labels) + criterion(text_logits, text_labels)
         loss.backward()
 
         # accumulating
@@ -122,32 +128,35 @@ def eval_epoch(
         dataloader: DataLoader,
         criterion: nn.Module,
         device: Union[str, torch.device]
-):
+) -> Union[int, float]:
     """
     Function for evaluation model on one epoch
-    :param model: CLIP
-    :param dataloader: torch DataLoader
-    :param criterion: criterion for training
-    :param device: device for evaluation
-    :return: mean evaluation loss on epoch
+
+    Args:
+        model: CLIP
+        dataloader: torch DataLoader
+        criterion: criterion for training
+        device: device for evaluation
+
+    Returns:
+        mean evaluation loss on epoch
     """
     model.eval()
-    eval_loss = 0
-    count = 0
+    eval_loss, count = 0, 0
     for batch in tqdm(dataloader, leave=False):
         image, text = batch['image'].to(device), batch['text'].to(device)
-        text_features = None
-        if 'text_features' in batch:
-            text_features = batch['text_features'].to(device)
+        text_features = batch.get('text_features', None)
+        if text_features is not None:
+            text_features = text_features.to(device)
 
-        logits_img, logits_text, (_, text_embedding) = model(
+        img_logits, text_logits, (_, text_embedding) = model(
             image=image, text=text, text_features=text_features
         )
 
-        labels_img = create_label(text_embedding)
-        labels_text = labels_img.t()
+        img_labels = create_label(text_embedding)
+        text_labels = img_labels.t()
 
-        loss = criterion(logits_img, labels_img) + criterion(logits_text, labels_text)
+        loss = criterion(img_logits, img_labels) + criterion(text_logits, text_labels)
         
         eval_loss += loss.item()
         count += 1
