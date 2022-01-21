@@ -20,7 +20,8 @@ class VisionPartCLIP(nn.Module):
         """
         Method for init vision part CLIP
 
-        :param vision_model: CNN model for getting image embedding
+        Args:
+            vision_model: CNN model for getting image embedding
         """
         super().__init__()
         self.vision_model: nn.Module = vision_model
@@ -38,10 +39,13 @@ class VisionPartCLIP(nn.Module):
         Forward method of vision part with computing image and text embedding
         cosine similarity
 
-        :param image: input image
-        :param text_embedding: normalized text embedding
-        :param image_features: vector representation of image from vision model
-        :return: image and text logits, image embedding
+        Args:
+            image: input image
+            text_embedding: normalized text embedding
+            image_features: vector representation of image from vision model
+
+        Returns:
+            image and text logits, image embedding
         """
         if image_features is None:
             image_features = self.vision_model(image)
@@ -56,7 +60,8 @@ class VisionPartCLIP(nn.Module):
         """
         Method for know device on which the model is located.
 
-        :return: device name
+        Returns:
+            model device
         """
         return next(iter(self.parameters())).device
 
@@ -74,8 +79,9 @@ class CLIP(nn.Module):
         """
         Method for init CLIP
 
-        :param vision_clip_part: vision part of clip
-        :param text_model: Transform for embedding text
+        Args:
+            vision_clip_part: vision part of clip
+            text_model: Transform for embedding text
         """
         super().__init__()
         self.vision_clip_part = vision_clip_part
@@ -91,11 +97,14 @@ class CLIP(nn.Module):
         """
         Forward method CLIP
 
-        :param image: input image
-        :param text: input text description
-        :param image_features: vector representation of image from vision model
-        :param text_features: vector representation of text from text model
-        :return: image, text logits, (image, text embeddings)
+        Args:
+            image: input image
+            text: text description
+            image_features: vector representation of image from vision model
+            text_features: vector representation of text from text model
+
+        Returns:
+            image and text logits, (image and text embeddings)
         """
         if text_features is None:
             text_features = self.text_model(text)
@@ -118,11 +127,14 @@ class CLIP(nn.Module):
         """
         Inference forward CLIP
 
-        :param image: input image
-        :param text: input text classes
-        :param image_features: images embedding vectors
-        :param text_features: text embedding vectors
-        :return: classes of input images
+        Args:
+            image: input image
+            text: input text classes
+            image_features: images embedding vectors
+            text_features: text embedding vectors
+
+        Returns:
+            classes of input images
         """
         image_logit, _, (image_embedding, text_embedding) = (
             self.forward(image, text, image_features, text_features)
@@ -135,6 +147,7 @@ class CLIP(nn.Module):
         """
         Method for know device on which the model is located.
 
-        :return: device name
+        Returns:
+            model device
         """
         return next(iter(self.parameters())).device
