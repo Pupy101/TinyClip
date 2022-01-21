@@ -1,3 +1,7 @@
+"""
+Module with different datasets
+"""
+
 from typing import Callable, Dict, Optional
 
 import numpy as np
@@ -23,11 +27,12 @@ class TextAndImageFromCSV(Dataset):
         """
         Method for init dataset
 
-        :param csv: pandas.DataFrame with 2 columns: first - path to image;
-        second - text description.
-        :param tokenizer: tokenizer for text
-        :param max_seq_len: max length for token sequence
-        :param transform: augmentation for image
+        Args:
+            csv: dataframe with 2 columns: first - path to image
+                and second - text description
+            tokenizer: tokenizer for text
+            max_seq_len: max length for token sequence
+            transform: augmentation for image
         """
         self.csv = csv
         self.tokenizer = tokenizer
@@ -38,8 +43,11 @@ class TextAndImageFromCSV(Dataset):
         """
         Method for getting a pair of image and text
 
-        :param item: index of item
-        :return: dict with two keys: image and text
+        Args:
+            item: index of item
+
+        Returns:
+            dict with two keys: image and text
         """
         file_name = self.csv.iloc[item, 0]
         img = np.array(Image.open(file_name))
@@ -67,7 +75,8 @@ class TextAndImageFromCSV(Dataset):
         """
         Method for getting count of pairs
 
-        :return: count of pairs
+        Returns:
+            count of pairs
         """
         return self.csv.shape[0]
 
@@ -85,10 +94,11 @@ class TextAndImageCachedTextFromCSV(Dataset):
         """
         Method for init dataset
 
-        :param csv: pandas.DataFrame with many columns: first - path to image;
-        second - text description; other columns are vector representation
-        of text description
-        :param transform: augmentation for image
+        Args:
+            csv: dataframe with many columns: first - path to image; second -
+                text description; other columns are vector representation
+            transform: augmentation for image
+            **kwargs: kwargs
         """
         self.csv = csv
         self.transform = transform
@@ -97,25 +107,29 @@ class TextAndImageCachedTextFromCSV(Dataset):
         """
         Method for getting a pair of image and text
 
-        :param item: index of item
-        :return: dict with two keys: image and text
+        Args:
+            item: index of item
+
+        Returns:
+            dict with two keys: image and text
         """
         file_name = self.csv.iloc[item, 0]
         img = np.array(Image.open(file_name))
         if self.transform is not None:
             img = self.transform(image=img)['image']
-        # text_features = torch.tensor(self.csv.iloc[item, 2:]).float()
+        text_features = torch.tensor(self.csv.iloc[item, 2:]).float()
         return {
             'image': img,
             'text': torch.tensor(1),
-            'text_features': torch.rand(10)#text_features
+            'text_features': text_features,
         }
 
     def __len__(self) -> int:
         """
         Method for getting count of pairs
 
-        :return: count of pairs
+        Returns:
+            count of pairs
         """
         return self.csv.shape[0]
 
@@ -128,35 +142,42 @@ class ImageFromCSV(Dataset):
             self,
             csv: DataFrame,
             transform: Optional[Callable] = None,
-    ):
+    ) -> None:
         """
         Method for init dataset
 
-        :param csv: pandas.DataFrame with 1 column - path to image
-        :param transform: augmentation for image
+        Args:
+            csv: dataframe with 1 column - path to image
+            transform: augmentation for image
         """
         self.csv = csv
         self.transform = transform
 
     def __getitem__(self, item) -> Dict[str, torch.Tensor]:
         """
-        Method for getting image and it's index in pandas.DataFrame
+        Method for getting image and it's index in dataframe
 
-        :param item: index of item
-        :return: dict with two keys: image and index
+        Args:
+            item: index of item
+
+        Returns:
+            dict with two keys: image and index
         """
+        file_name = self.csv.iloc[item, 0]
         img = np.array(Image.open(file_name))
         if self.transform is not None:
             img = self.transform(image=img)['image']
 
         return {
             'image': img,
+            'index': torch.tensor(item).long(),
         }
 
     def __len__(self) -> int:
         """
         Method for getting count of pairs
 
-        :return: count of pairs
+        Returns:
+            count of pairs
         """
         return self.csv.shape[0]

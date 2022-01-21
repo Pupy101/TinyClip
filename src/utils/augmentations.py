@@ -1,3 +1,7 @@
+"""
+Module with augmentations for image
+"""
+
 import albumentations as A
 
 from albumentations.pytorch import ToTensorV2
