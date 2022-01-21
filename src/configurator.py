@@ -88,9 +88,9 @@ class Configurator:
         """
         vision_part = VisionPartCLIP(self.config.MODEL_VISION)
         model = CLIP(vision_part, self.config.MODEL_TEXT)
-        if self.config.PATH_TO_WEIGHTS['PRETRAINED_WEIGHTS']:
+        if self.config.PATH_TO_WEIGHT['PRETRAINED']:
             weights = torch.load(
-                self.config.PATH_TO_WEIGHTS['PRETRAINED_WEIGHTS']
+                self.config.PATH_TO_WEIGHT['PRETRAINED']
             )
             model.load_state_dict(weights)
         return model.to(self.device)
@@ -177,7 +177,7 @@ class Configurator:
             return None
         len_loader = (
                 len(self.loaders['train']) //
-                self.config.ACCUMULATION_STEPS + 1
+                self.config.ACCUMULATION + 1
         )
         return self.config.SCHEDULER_LR(
             self.optimizer,

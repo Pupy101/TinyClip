@@ -39,7 +39,7 @@ class WrapperModelFromHuggingFace(nn.Module):
 def get_annotation_from_parent_model(
         child_model: nn.Module,
         parent_model: nn.Module,
-        depth_recursion: int = 2
+        depth_recursion: int = 1
 ):
     """
     Function for getting describing attributes from parent model
@@ -61,10 +61,7 @@ def get_annotation_from_parent_model(
             intersection_attrs = parent_attrs & child_attrs
             changed_attrs = intersection_attrs & method_from_parent
             for updated_attr in changed_attrs:
-                try:
-                    setattr(child, updated_attr, getattr(child, updated_attr))
-                except AttributeError:
-                    print(f'{updated_attr} of {child} are skipped')
+                setattr(child, updated_attr, getattr(child, updated_attr))
             methods_and_attrs[depth + 1].extend([
                 (getattr(parent, attr), getattr(child, attr))
                 for attr in intersection_attrs if not attr.startswith('__')

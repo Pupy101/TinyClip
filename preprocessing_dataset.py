@@ -67,15 +67,17 @@ def cache_text_embedding(
     :param tokenizer:
     :return:
     """
+    columns = [f'col_{i+1}' for i in range(768)]
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = model.to(device)
+    dataframe.loc[:, columns] = 0.
     df = dataframe.copy()
     df['input'] = df['text'].apply(lambda x: tokenizer(x, return_tensors='pt'))
     df['size'] = df['input'].apply(lambda x: x['input_ids'].shape[1])
-    unique_size = df.size.unique().to_list()
-    columns = [f'col_{i+1}' for i in range(768)]
+    unique_size = df['size'].unique().tolist()
     for size in tqdm(unique_size, leave=False):
-        texts = dataframe.text[df.size == size]
+        index = df['size'] == size
+        texts = dataframe.text[index]
         for i in range(len(texts) // batch_size + 1):
             batch_text = texts[i*batch_size: (i+1)*batch_size].to_list()
             encoded_input = tokenizer(
@@ -83,11 +85,7 @@ def cache_text_embedding(
             ).to(device)
             with torch.no_grad():
                 model_output = model(**encoded_input).cpu().numpy()
-            for text in batch_text:
-                index = dataframe.text == text
-                dataframe.loc[index, columns] = np.repeat(
-                    model_output, np.sum(index), axis=0
-                )
+            dataframe.loc[index, columns].iloc[i*batch_size: (i+1)*batch_size, :] = model_output
     return dataframe
 
 
@@ -166,7 +164,8 @@ if __name__ == '__main__':
             Config.LOADER_PARAMS['valid']['batch_size'],
         )
         valid = cache_text_embedding(
-            valid, Config.MODEL_TEXT, Config.TOKENIZER
+            valid, Config.MODEL_TEXT, Config.TOKENIZER,
+            Config.LOADER_PARAMS['valid']['batch_size'],
         )
     train.to_csv(path_join(args.target_csv, 'train.csv'), index=False)
     valid.to_csv(path_join(args.target_csv, 'valid.csv'), index=False)

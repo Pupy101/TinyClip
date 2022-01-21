@@ -21,10 +21,12 @@ class Config:
         'train': {
             'batch_size': 840,
             'shuffle': True,
+            'num_workers': 4,
         },
         'valid': {
             'batch_size': 840,
             'shuffle': True,
+            'num_workers': 4,
         }
     }
 

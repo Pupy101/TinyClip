@@ -1,9 +1,11 @@
 from typing import Callable, Dict, Optional
 
-import cv2
+import numpy as np
 import torch
 
+
 from pandas import DataFrame
+from PIL import Image
 from torch.utils.data import Dataset
 
 
@@ -40,10 +42,7 @@ class TextAndImageFromCSV(Dataset):
         :return: dict with two keys: image and text
         """
         file_name = self.csv.iloc[item, 0]
-        img = cv2.cvtColor(
-            cv2.imread(file_name),
-            cv2.COLOR_BGR2RGB
-        )
+        img = np.array(Image.open(file_name))
         if self.transform is not None:
             img = self.transform(image=img)['image']
 
@@ -81,6 +80,7 @@ class TextAndImageCachedTextFromCSV(Dataset):
             self,
             csv: DataFrame,
             transform: Optional[Callable] = None,
+            **kwargs
     ) -> None:
         """
         Method for init dataset
@@ -101,17 +101,14 @@ class TextAndImageCachedTextFromCSV(Dataset):
         :return: dict with two keys: image and text
         """
         file_name = self.csv.iloc[item, 0]
-        img = cv2.cvtColor(
-            cv2.imread(file_name),
-            cv2.COLOR_BGR2RGB
-        )
+        img = np.array(Image.open(file_name))
         if self.transform is not None:
             img = self.transform(image=img)['image']
-        text_features = torch.tensor(self.csv.iloc[item, 2:]).float()
+        # text_features = torch.tensor(self.csv.iloc[item, 2:]).float()
         return {
             'image': img,
-            'text': [1],
-            'text_features': text_features
+            'text': torch.tensor(1),
+            'text_features': torch.rand(10)#text_features
         }
 
     def __len__(self) -> int:
@@ -148,10 +145,7 @@ class ImageFromCSV(Dataset):
         :param item: index of item
         :return: dict with two keys: image and index
         """
-        img = cv2.cvtColor(
-            cv2.imread(self.csv.iloc[item, 0]),
-            cv2.COLOR_BGR2RGB
-        )
+        img = np.array(Image.open(file_name))
         if self.transform is not None:
             img = self.transform(image=img)['image']
 
