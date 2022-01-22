@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Union
 
 import torch
 import pandas as pd
@@ -26,10 +26,12 @@ class Configurator:
     parameters for train or eval mode
     """
 
-    def __init__(self, config):
+    def __init__(self, config) -> None:
         """
         Method for init training parameters
-        :param config: config of training
+
+        Args:
+            config: config of training
         """
         type_using = config.TYPE_USING.lower().strip()
         assert type_using in ['train', 'eval'], 'Incorrect type of using'
@@ -47,7 +49,9 @@ class Configurator:
     def train_parameters(self) -> Dict[str, Any]:
         """
         Method return training parameters
-        :return: dict with parameters
+
+        Returns:
+            dict with training parameters
         """
         assert self.training, 'Use only for training'
         assert self.config.ACCUMULATION > 0, 'Accumulation must be more than 0'
@@ -67,24 +71,28 @@ class Configurator:
     def eval_parameters(self) -> Dict[str, Any]:
         """
         Method return evaluation parameters
-        :return: dict with parameters
+
+        Returns:
+            dict with evaluation parameters
         """
         assert not self.training, 'Use only for evaluation'
-        INFERENCE_PARAMS = self.config.INFERENCE_PARAMS
+        inference_params = self.config.INFERENCE_PARAMS
         return {
-            'classes': INFERENCE_PARAMS['CLASSES'],
+            'classes': inference_params['CLASSES'],
             'csv': self.csv,
             'device': self.device,
             'loaders': self.loaders,
             'model': self.model,
-            'target_dir': INFERENCE_PARAMS['TARGET_DIR'],
+            'target_dir': inference_params['PREDICTION_DIR'],
             'tokenizer': self.config.TOKENIZER,
         }
 
     def _init_model(self) -> nn.Module:
         """
         Method for init model
-        :return: CLIP
+
+        Returns:
+            CLIP model
         """
         vision_part = VisionPartCLIP(self.config.MODEL_VISION)
         model = CLIP(vision_part, self.config.MODEL_TEXT)
@@ -98,7 +106,9 @@ class Configurator:
     def _init_criterion(self) -> nn.Module:
         """
         Method for create criterion
-        :return: criterion
+
+        Returns:
+            criterion
         """
         assert self.training, 'Init only in training mode'
         return self.config.CRITERION()
@@ -119,7 +129,9 @@ class Configurator:
     def _init_dataset(self) -> Dict[str, Dataset]:
         """
         Method create dataset
-        :return: dict with datasets
+
+        Returns:
+            dict with datasets
         """
         datasets = {}
         if self.training:
@@ -142,11 +154,11 @@ class Configurator:
                     transform=transformation,
                 )
         else:
-            EVAL_DIRS = self.config.INFERENCE_PARAMS
+            eval_dirs = self.config.INFERENCE_PARAMS
             csv = pd.DataFrame({
                 'image': [
-                    os.path.join(EVAL_DIRS['IMAGES_DIR'], img)
-                    for img in os.listdir(EVAL_DIRS['IMAGES_DIR'])
+                    os.path.join(eval_dirs['IMAGES_DIR'], img)
+                    for img in os.listdir(eval_dirs['IMAGES_DIR'])
                 ]
             })
             self.csv = csv
@@ -155,10 +167,12 @@ class Configurator:
             )
         return datasets
 
-    def _init_loaders(self):
+    def _init_loaders(self) -> Dict[str, DataLoader]:
         """
         Method for init loaders
-        :return: dict with loaders
+
+        Returns:
+            dict with loaders
         """
         datasets = self._init_dataset()
         return {
@@ -169,7 +183,13 @@ class Configurator:
             for key in datasets
         }
 
-    def _init_scheduler(self):
+    def _init_scheduler(self) -> Union[None, optim.lr_scheduler._LRScheduler]:
+        """
+        Method for init learning rate scheduler
+
+        Returns:
+            None or lr scheduler
+        """
         assert self.training, 'Init only in training mode'
         assert hasattr(self, 'optimizer'), 'Please init optimizer before'
         assert hasattr(self, 'loaders'), 'Please init loaders before'
