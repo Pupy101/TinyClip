@@ -117,7 +117,8 @@ class TextAndImageCachedTextFromCSV(Dataset):
         img = np.array(Image.open(file_name))
         if self.transform is not None:
             img = self.transform(image=img)['image']
-        text_features = torch.from_numpy(self.csv.iloc[item, 2:]).float()
+        text_features_numpy = self.csv.iloc[item, 2:].to_numpy('float32')
+        text_features = torch.from_numpy(text_features_numpy).float()
         return {
             'image': img,
             'text': torch.tensor(1),
