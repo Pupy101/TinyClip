@@ -72,8 +72,7 @@ def inference(configuration: Configurator) -> None:
     for batch in tqdm(loaders['valid'], leave=False):
         image, index = batch['image'].to(device), batch['index'].numpy()
         output_classes, _ = model.inference(
-            image=image, text=None, text_features=text_features,
-            is_raw_output=True
+            image=image, text=None, text_features=text_features
         )
         images_names.extend(csv.iloc[index, 0].to_list())
         predicted_classes.extend(output_classes.view(-1).cpu().tolist())
