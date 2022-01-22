@@ -9,7 +9,6 @@ import argparse
 from typing import Callable, Dict, Union
 from os.path import join as path_join
 
-import numpy as np
 import pandas as pd
 import torch
 
@@ -30,11 +29,14 @@ def create_csv(
 ) -> pd.DataFrame:
     """
     Function for create csv with 2 columns - path to image and text description
-    from coco dataset
+        from coco dataset
 
-    :param data: json data about dataframe
-    :param directory: directories with images
-    :return: pandas.DataFrame
+    Args:
+        data: json data about dataframe
+        directory: directories with images
+
+    Returns:
+        dataframe with 2 columns: 1 - path to image, 2 - text description
     """
     path_to_images = []
     text_descriptions = []
@@ -62,10 +64,16 @@ def cache_text_embedding(
 ) -> pd.DataFrame:
     """
     Function for preprocessing text data and cache embedding into csv
-    :param dataframe:
-    :param model:
-    :param tokenizer:
-    :return:
+
+    Args:
+        dataframe: input dataframe with 2 columns: 1 - image path 2 - text
+            description
+        model: text model for create description embedding
+        tokenizer: text tokenizer
+        batch_size: batch size for text model
+
+    Returns:
+        dataframe with new columns
     """
     columns = [f'col_{i+1}' for i in range(768)]
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -78,6 +86,7 @@ def cache_text_embedding(
     for size in tqdm(unique_size, leave=False):
         index = df['size'] == size
         texts = dataframe.text[index]
+        batch_df = dataframe[index]
         for i in range(len(texts) // batch_size + 1):
             batch_text = texts[i*batch_size: (i+1)*batch_size].to_list()
             encoded_input = tokenizer(
@@ -85,7 +94,8 @@ def cache_text_embedding(
             ).to(device)
             with torch.no_grad():
                 model_output = model(**encoded_input).cpu().numpy()
-            dataframe.loc[index, columns].iloc[i*batch_size: (i+1)*batch_size, :] = model_output
+            batch_df.iloc[i*batch_size: (i+1)*batch_size, 2:] = model_output
+        dataframe[index] = batch_df
     return dataframe
 
 
