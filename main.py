@@ -1,5 +1,5 @@
 from src import Configurator
-from src.run import inference, train
+from src.engine import inference, train
 
 from config import Config
 
