@@ -69,22 +69,22 @@ class VisionPartCLIP(nn.Module):
 class CLIP(nn.Module):
     """
     CLIP model with 2 parts:
-    image part - CNN and text part - Transformer
+    image part and text part
     """
     def __init__(
             self,
-            vision_clip_part: VisionPartCLIP,
+            vision_part: VisionPartCLIP,
             text_model: nn.Module,
     ) -> None:
         """
         Method for init CLIP
 
         Args:
-            vision_clip_part: vision part of clip
+            vision_part: vision part of clip
             text_model: Transform for embedding text
         """
         super().__init__()
-        self.vision_clip_part = vision_clip_part
+        self.vision_part = vision_part
         self.text_model = text_model
 
     def forward(
@@ -109,7 +109,7 @@ class CLIP(nn.Module):
         if text_features is None:
             text_features = self.text_model(text)
         text_embedding = normalize(text_features)
-        image_logit, text_logit, image_embedding = self.vision_clip_part(
+        image_logit, text_logit, image_embedding = self.vision_part(
             image=image,
             text_embedding=text_embedding,
             image_features=image_features,
