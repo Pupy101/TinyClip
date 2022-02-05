@@ -4,7 +4,7 @@ from torch import optim, nn
 from torchvision import models
 from transformers import AutoTokenizer, AutoModel
 
-from src.utils import FocalLoss
+from src.utils.losses import FocalLoss
 from src.model import WrapperModelFromHuggingFace
 
 
@@ -53,7 +53,7 @@ class Config:
 
     DEVICE: str = 'cuda'
     NUM_EPOCH: int = 30
-    ACCUMULATION: int = 2  # set 1 if accumulation doesn't need
+    ACCUMULATION: int = 16  # set 1 if accumulation doesn't need
 
     OPTIMIZER: optim.Optimizer = optim.AdamW
     OPTIMIZER_PARAMS: Dict[str, float] = {'lr': 3e-4}

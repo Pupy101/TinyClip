@@ -3,13 +3,15 @@ Module with CLIP model. It contains separated vision part of CLIP.
 Vision part is separated, because only it will be trained in this library.
 """
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import torch
 import numpy as np
 
 from torch import nn
 from torch.nn.functional import normalize
+
+TENSOR_OR_NONE = Union[None, torch.Tensor]
 
 
 class VisionPartCLIP(nn.Module):
@@ -34,7 +36,8 @@ class VisionPartCLIP(nn.Module):
             image: torch.Tensor,
             text_embedding: torch.Tensor,
             image_features: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+            only_features: Optional[bool] = False,
+    ) -> Tuple[TENSOR_OR_NONE, TENSOR_OR_NONE, torch.Tensor]:
         """
         Forward method of vision part with computing image and text embedding
         cosine similarity
@@ -43,6 +46,8 @@ class VisionPartCLIP(nn.Module):
             image: input image
             text_embedding: normalized text embedding
             image_features: vector representation of image from vision model
+            only_features: return only features or features with image and
+                text logits
 
         Returns:
             image and text logits, image embedding
@@ -50,6 +55,8 @@ class VisionPartCLIP(nn.Module):
         if image_features is None:
             image_features = self.vision_model(image)
         image_embedding = normalize(image_features)
+        if only_features:
+            return None, None, image_embedding
         logit_scale = self.logit_scale.exp()
         image_logit = logit_scale * image_embedding@text_embedding.t()
         text_logit = image_logit.t()
@@ -93,6 +100,7 @@ class CLIP(nn.Module):
             text: torch.Tensor,
             image_features: Optional[torch.Tensor] = None,
             text_features: Optional[torch.Tensor] = None,
+            only_features: Optional[bool] = False
     ) -> Tuple[torch.Tensor, torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         """
         Forward method CLIP
@@ -102,6 +110,8 @@ class CLIP(nn.Module):
             text: text description
             image_features: vector representation of image from vision model
             text_features: vector representation of text from text model
+            only_features: return only features or features with image and
+                text logits
 
         Returns:
             image and text logits, (image and text embeddings)
@@ -113,6 +123,7 @@ class CLIP(nn.Module):
             image=image,
             text_embedding=text_embedding,
             image_features=image_features,
+            only_features=only_features,
         )
         return image_logit, text_logit, (image_embedding, text_embedding)
 
@@ -136,11 +147,11 @@ class CLIP(nn.Module):
         Returns:
             classes of input images
         """
-        image_logit, _, (image_embedding, text_embedding) = (
+        image_logit, *_ = (
             self.forward(image, text, image_features, text_features)
         )
         classes = torch.argmax(image_logit, dim=1)
-        return classes, (image_embedding, text_embedding)
+        return classes
 
     @property
     def device(self) -> torch.device:

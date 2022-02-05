@@ -54,16 +54,14 @@ class TextAndImageFromCSV(Dataset):
         if self.transform is not None:
             img = self.transform(image=img)['image']
 
-        description = self.csv.iloc[item, 1]
+        text = self.csv.iloc[item, 1]
         text = self.tokenizer(
-            description,
-            return_tensors="pt"
+            text, return_tensors="pt"
         )['input_ids'].squeeze(0)[:self.max_seq_len]
         padding_count = self.max_seq_len - len(text)
         if padding_count:
             text = torch.cat([
-                text,
-                torch.tensor([0] * padding_count, dtype=torch.int)
+                text, torch.tensor([0] * padding_count, dtype=torch.int)
             ])
 
         return {

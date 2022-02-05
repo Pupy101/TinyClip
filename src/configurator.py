@@ -1,4 +1,5 @@
 import os
+
 from typing import Any, Dict, Union
 
 import torch
@@ -7,17 +8,18 @@ import pandas as pd
 from torch import nn, optim
 from torch.utils.data import Dataset, DataLoader
 
+from config import Config
 from .model import (
     CLIP,
     VisionPartCLIP,
 )
-from .utils import (
-    augmentations,
-    freeze_weight,
+from .utils.augmentations import augmentations
+from .utils.dataset import (
     ImageFromCSV,
     TextAndImageFromCSV,
     TextAndImageCachedTextFromCSV,
 )
+from .utils.misc import freeze_weight
 
 
 class Configurator:
@@ -26,7 +28,7 @@ class Configurator:
     parameters for train or eval mode
     """
 
-    def __init__(self, config) -> None:
+    def __init__(self, config: Config) -> None:
         """
         Method for init training parameters
 
