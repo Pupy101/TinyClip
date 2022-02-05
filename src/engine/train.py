@@ -44,7 +44,6 @@ def train(configuration: Configurator) -> None:
             device=params['device'],
             scheduler=params['scheduler'],
             accumulation=params['accumulation'],
-            accumulation_batch=params['accumulation_batch'],
         )
         val_loss = eval_epoch(
             model=model,
