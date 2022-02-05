@@ -124,7 +124,7 @@ class Configurator:
         assert hasattr(self, 'model'), 'Please init model before'
         freeze_weight(self.model.text_model)
         return self.config.OPTIMIZER(
-            self.model.vision_clip_part.parameters(),
+            self.model.vision_part.parameters(),
             **self.config.OPTIMIZER_PARAMS
         )
 
