@@ -40,7 +40,7 @@ class Configurator:
             path_to_config = Path(path_to_config)
         assert path_to_config.exists(), 'Fix config path'
         module_with_config = SourceFileLoader(
-            path_to_config.stem, path_to_config.absolute()
+            path_to_config.stem, str(path_to_config.absolute())
         ).load_module()
         assert 'Config' in dir(module_with_config), 'Module must consist class Config'
         config: 'Config' = module_with_config.Config
