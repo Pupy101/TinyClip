@@ -14,6 +14,9 @@ import torch
 from torch import nn
 
 
+requests.adapters.DEFAULT_RETRIES = 1
+
+
 def normalize(tensor: torch.Tensor) -> torch.tensor:
     """
     Function for normalize tensor along 1 dimension
