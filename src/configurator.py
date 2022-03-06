@@ -15,7 +15,7 @@ from .data.augmentations import augmentations
 from .data.dataset import (
     InferenceImage, TextAndImage, TextAndImageCachedText, TextAndImageURL
 )
-from .data.collate_funcs import url_collate
+from .data.collate_funcs import collate_fabric
 from .model import CLIP, VisionPartCLIP
 from .utils.functions import freeze_weight
 
@@ -197,7 +197,12 @@ class Configurator:
         if self.config.DATASET_TYPE.value == 'url':
             for key in loader_parameters:
                 loader_parameters[key].update(
-                    {'collate_fn': url_collate}
+                    {
+                        'collate_fn': collate_fabric(
+                            tokenizer=self.config.TOKENIZER,
+                            max_len=self.config.MAX_SEQUENCE_LEN,
+                        )
+                    }
                 )
         return {
             key: DataLoader(

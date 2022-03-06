@@ -42,7 +42,7 @@ class Config:
     MODEL_VISION: nn.Module = VisionModelPreparator(model='mobilenet_v3_small', pretrained=True)\
         .change_layer_to_mlp(layer_name='classifier', mlp_shapes=[576, 640, 768], activation=nn.PReLU).model
 
-    MAX_SEQUENCE_LEN: int = 32
+    MAX_SEQUENCE_LEN: int = 24
     TOKENIZER: Callable = AutoTokenizer.from_pretrained('cointegrated/LaBSE-en-ru')
 
     MODEL_TEXT: nn.Module = WrapperModelFromHuggingFace(

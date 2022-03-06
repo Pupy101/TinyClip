@@ -112,7 +112,7 @@ class TextAndImage(TextAndImageCachedText):
 
         return {'image': img, 'text': tokenized_text}
 
-    def prepare_text(self, text: str):
+    def prepare_text(self, text: str) -> torch.Tensor:
         tokenized_text = self.tokenizer(
             text, return_tensors="pt"
         )['input_ids'].squeeze(0)[:self.max_seq_len]
@@ -208,6 +208,9 @@ class TextAndImageURL(TextAndImage):
             count of pairs
         """
         return self.csv.shape[0]
+
+    def prepare_text(self, text: str) -> str:
+        return text
 
     def __getitem__(self, item):
         """
