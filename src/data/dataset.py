@@ -104,7 +104,7 @@ class TextAndImage(TextAndImageCachedText):
             dict with two keys: image and text
         """
         file_name = self.csv.iloc[item, 0]
-        img = self.open_image(file_name)
+        img = self.prepare_image(file_name)
 
         text = self.csv.iloc[item, 1]
         tokenized_text = self.prepare_text(text)
@@ -220,7 +220,7 @@ class TextAndImageURL(TextAndImage):
         """
 
         url = self.csv.iloc[item, 0]
-        img = self.open_image(get_image(session=self.session, url=url))
+        img = self.prepare_image(get_image(session=self.session, url=url))
 
         text = self.csv.iloc[item, 1]
         tokenized_text = self.prepare_text(text)
