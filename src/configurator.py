@@ -50,9 +50,10 @@ class Configurator:
         self.device = config.DEVICE
         self.training = type_using == 'train'
         self.model = self._init_model()
+        if self.training and self.config.DATASET_TYPE.value == 'url':
+            self.session = Session()
         self.loaders = self._init_loaders()
         if self.training:
-            self.session = Session()
             self.optimizer = self._init_optimizer_and_freeze()
             self.scheduler = self._init_scheduler()
             self.criterion = self._init_criterion()
