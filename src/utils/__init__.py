@@ -1,3 +1,3 @@
 """
-Module with
+Module with utils scripts
 """

@@ -1,59 +1,62 @@
+from pathlib import Path
 from typing import Callable, Dict, List, Union
 
+import torch
+
 from torch import optim, nn
-from torchvision import models
 from transformers import AutoTokenizer, AutoModel
 
 from src.utils.losses import FocalLoss
-from src.model import WrapperModelFromHuggingFace
+from src.model import WrapperModelFromHuggingFace, VisionModelPreparator
+from src.classes.config import (
+    DatasetType,
+    CLIPDatasets,
+    CLIPLoaders,
+    InferenceParameters,
+    LoaderParameters,
+    ModelWeight,
+    TypeUsing,
+)
 
 
 class Config:
-    TYPE_USING: str = 'train'  # or 'eval'
+    TYPE_USING: TypeUsing = TypeUsing.TRAIN
 
-    DATASETS_CSV: Dict[str, str] = {
-        'train': '/content/train.csv',
-        'valid': '/content/valid.csv',
-    }
-    DATASET_WITH_CACHED_TEXT: bool = True
-
-    LOADER_PARAMS: Dict[str, Dict[str, Union[bool, int]]] = {
-        'train': {
-            'batch_size': 840,
-            'shuffle': True,
-            'num_workers': 4,
-        },
-        'valid': {
-            'batch_size': 840,
-            'shuffle': True,
-            'num_workers': 4,
-        }
-    }
-
-    MODEL_VISION: nn.Module = models.mobilenet_v3_small(pretrained=True)
-    # change last part of pretrained on imagenet model
-    MODEL_VISION.classifier = nn.Sequential(
-        nn.Linear(in_features=576, out_features=2048),
-        nn.LeakyReLU(negative_slope=0.1),
-        nn.Linear(in_features=2048, out_features=768),
-        nn.LayerNorm(normalized_shape=768),
+    DATASET_TYPE: DatasetType = DatasetType.URL
+    DATASETS_CSV: CLIPDatasets = CLIPDatasets(
+        train=Path('/content/train.csv'),
+        valid=Path('/content/valid.csv'),
     )
 
-    MAX_SEQUENCE_LEN: int = 20
+    LOADER_PARAMS: CLIPLoaders = CLIPLoaders(
+        train=LoaderParameters(
+            batch_size=840,
+            shuffle=True,
+        ),
+        valid=LoaderParameters(
+            batch_size=840,
+            shuffle=True,
+        ),
+    )
+
+    MODEL_VISION: nn.Module = VisionModelPreparator(model='mobilenet_v3_small', pretrained=True)\
+        .change_layer_to_mlp(layer_name='classifier', mlp_shapes=[576, 640, 768], activation=nn.PReLU).model
+
+    MAX_SEQUENCE_LEN: int = 32
     TOKENIZER: Callable = AutoTokenizer.from_pretrained('cointegrated/LaBSE-en-ru')
 
     MODEL_TEXT: nn.Module = WrapperModelFromHuggingFace(
         AutoModel.from_pretrained('cointegrated/LaBSE-en-ru'),
+        getting_attr_from_model='pooler_output',
     )
 
-    PATH_TO_WEIGHT: Dict[str, Union[None, str]] = {
-        'PRETRAINED': None,
-        'SAVING': './training/weights',
-    }
+    PATH_TO_WEIGHT: ModelWeight = ModelWeight(
+        save=Path('./training/weights'), pretrained=None
+    )
 
-    DEVICE: str = 'cuda'
+    DEVICE: torch.device = torch.device('cuda')
     NUM_EPOCH: int = 30
-    ACCUMULATION: int = 16  # set 1 if accumulation doesn't need
+    ACCUMULATION: int = 16
 
     OPTIMIZER: optim.Optimizer = optim.AdamW
     OPTIMIZER_PARAMS: Dict[str, float] = {'lr': 3e-4}
@@ -66,8 +69,8 @@ class Config:
     SCHEDULER_LR = optim.lr_scheduler.OneCycleLR  # other scheduler or None
     SCHEDULER_LR_PARAMS = {'anneal_strategy': 'cos'}
 
-    INFERENCE_PARAMS: Dict[str, Union[str, List[str]]] = {
-        'PREDICTION_DIR': '/content/CLIP/prediction',
-        'IMAGES_DIR': '/content/CLIP/testing',
-        'CLASSES': ['Dog', 'Cat', 'Human', 'Car'],
-    }
+    INFERENCE_PARAMS: InferenceParameters = InferenceParameters(
+        image_dir=Path('/content/CLIP/testing'),
+        prediction_dir=Path('/content/CLIP/prediction'),
+        classes=['Dog', 'Cat', 'Human', 'Car'],
+    )

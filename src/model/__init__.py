@@ -4,4 +4,4 @@ hugging face
 """
 
 from .clip import CLIP, VisionPartCLIP
-from .wrappers import WrapperModelFromHuggingFace
+from .wrappers import WrapperModelFromHuggingFace, VisionModelPreparator

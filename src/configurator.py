@@ -1,25 +1,26 @@
-import os
-
-from typing import Any, Dict, Union
+from dataclasses import asdict
+from importlib.machinery import SourceFileLoader
+from pathlib import Path
+from typing import Dict, Type, Union, TYPE_CHECKING
 
 import torch
 import pandas as pd
 
+from requests import Session
 from torch import nn, optim
 from torch.utils.data import Dataset, DataLoader
 
-from config import Config
-from .model import (
-    CLIP,
-    VisionPartCLIP,
+from .classes.configurator import TrainParameters, EvaluationParameters
+from .data.augmentations import augmentations
+from .data.dataset import (
+    InferenceImage, TextAndImage, TextAndImageCachedText, TextAndImageURL
 )
-from .utils.augmentations import augmentations
-from .utils.dataset import (
-    ImageFromCSV,
-    TextAndImageFromCSV,
-    TextAndImageCachedTextFromCSV,
-)
-from .utils.misc import freeze_weight
+from .model import CLIP, VisionPartCLIP
+from .utils.functions import freeze_weight
+
+
+if TYPE_CHECKING:
+    from config import Config
 
 
 class Configurator:
@@ -28,27 +29,37 @@ class Configurator:
     parameters for train or eval mode
     """
 
-    def __init__(self, config: Config) -> None:
+    def __init__(self, path_to_config: Union[str, Path]):
         """
         Method for init training parameters
 
         Args:
-            config: config of training
+            path_to_config: path to clip config
         """
-        type_using = config.TYPE_USING.lower().strip()
-        assert type_using in ['train', 'eval'], 'Incorrect type of using'
+        if isinstance(path_to_config, str):
+            path_to_config = Path(path_to_config)
+        assert path_to_config.exists(), 'Fix config path'
+        module_with_config = SourceFileLoader(
+            path_to_config.stem, path_to_config.absolute()
+        ).load_module()
+        assert 'Config' in dir(module_with_config), 'Module must consist class Config'
+        config: 'Config' = module_with_config.Config
+        type_using = config.TYPE_USING.value
+        assert type_using in ['train', 'evaluation'], 'Incorrect type of using'
         self.config = config
-        self.device = torch.device(config.DEVICE)
+        self.device = config.DEVICE
         self.training = type_using == 'train'
         self.model = self._init_model()
         self.loaders = self._init_loaders()
-        if config.TYPE_USING == 'train':
+        if self.training:
+            if self.config.DATASET_TYPE.value == 'url':
+                self.session = Session()
             self.optimizer = self._init_optimizer_and_freeze()
             self.scheduler = self._init_scheduler()
             self.criterion = self._init_criterion()
 
     @property
-    def train_parameters(self) -> Dict[str, Any]:
+    def train_parameters(self) -> TrainParameters:
         """
         Method return training parameters
 
@@ -57,20 +68,20 @@ class Configurator:
         """
         assert self.training, 'Use only for training'
         assert self.config.ACCUMULATION > 0, 'Accumulation must be more than 0'
-        return {
-            'accumulation': self.config.ACCUMULATION,
-            'criterion': self.criterion,
-            'device': self.device,
-            'loaders': self.loaders,
-            'model': self.model,
-            'n_epoch': self.config.NUM_EPOCH,
-            'optimizer': self.optimizer,
-            'save_dir': self.config.PATH_TO_WEIGHT['SAVING'],
-            'scheduler': self.scheduler,
-        }
+        return TrainParameters(
+            accumulation=self.config.ACCUMULATION,
+            criterion=self.criterion,
+            device=self.device,
+            loaders=self.loaders,
+            model=self.model,
+            n_epoch=self.config.NUM_EPOCH,
+            optimizer=self.optimizer,
+            save_dir=self.config.PATH_TO_WEIGHT.save,
+            scheduler=self.scheduler,
+        )
 
     @property
-    def eval_parameters(self) -> Dict[str, Any]:
+    def evaluation_parameters(self) -> EvaluationParameters:
         """
         Method return evaluation parameters
 
@@ -78,18 +89,17 @@ class Configurator:
             dict with evaluation parameters
         """
         assert not self.training, 'Use only for evaluation'
-        inference_params = self.config.INFERENCE_PARAMS
-        return {
-            'classes': inference_params['CLASSES'],
-            'csv': self.csv,
-            'device': self.device,
-            'loaders': self.loaders,
-            'model': self.model,
-            'target_dir': inference_params['PREDICTION_DIR'],
-            'tokenizer': self.config.TOKENIZER,
-        }
+        return EvaluationParameters(
+            classes=self.config.INFERENCE_PARAMS.classes,
+            csv=self.csv,
+            device=self.device,
+            loaders=self.loaders,
+            model=self.model,
+            target_dir=self.config.INFERENCE_PARAMS.prediction_dir,
+            tokenizer=self.config.TOKENIZER,
+        )
 
-    def _init_model(self) -> nn.Module:
+    def _init_model(self) -> CLIP:
         """
         Method for init model
 
@@ -98,9 +108,9 @@ class Configurator:
         """
         vision_part = VisionPartCLIP(self.config.MODEL_VISION)
         model = CLIP(vision_part, self.config.MODEL_TEXT)
-        if self.config.PATH_TO_WEIGHT['PRETRAINED']:
+        if self.config.PATH_TO_WEIGHT.pretrained:
             weights = torch.load(
-                self.config.PATH_TO_WEIGHT['PRETRAINED']
+                self.config.PATH_TO_WEIGHT.pretrained
             )
             model.load_state_dict(weights)
         return model.to(self.device)
@@ -124,7 +134,7 @@ class Configurator:
         assert hasattr(self, 'model'), 'Please init model before'
         freeze_weight(self.model.text_model)
         return self.config.OPTIMIZER(
-            self.model.vision_part.parameters(),
+            self.model.cv_model.parameters(),
             **self.config.OPTIMIZER_PARAMS
         )
 
@@ -137,34 +147,39 @@ class Configurator:
         """
         datasets = {}
         if self.training:
-            datasets_csv = self.config.DATASETS_CSV
+            datasets_csv = asdict(self.config.DATASETS_CSV)
             for key in datasets_csv:
                 transformation = (
                     augmentations[key]
                     if key in augmentations
                     else augmentations['valid']
                 )
-                dataset_initializer = (
-                    TextAndImageCachedTextFromCSV
-                    if self.config.DATASET_WITH_CACHED_TEXT
-                    else TextAndImageFromCSV
-                )
-                datasets[key] = dataset_initializer(
-                    csv=pd.read_csv(datasets_csv[key]),
-                    tokenizer=self.config.TOKENIZER,
-                    max_seq_len=self.config.MAX_SEQUENCE_LEN,
-                    transform=transformation,
-                )
+                if self.config.DATASET_TYPE.value == 'cached':
+                    datasets[key] = TextAndImageCachedText(
+                        csv=pd.read_csv(datasets_csv[key]),
+                        transform=transformation,
+                    )
+                elif self.config.DATASET_TYPE.value == 'url':
+                    datasets[key] = TextAndImageURL(
+                        csv=pd.read_csv(datasets_csv[key]),
+                        tokenizer=self.config.TOKENIZER,
+                        max_seq_len=self.config.MAX_SEQUENCE_LEN,
+                        transform=transformation,
+                        session=self.session,
+                    )
+                else:
+                    datasets[key] = TextAndImage(
+                        csv=pd.read_csv(datasets_csv[key]),
+                        tokenizer=self.config.TOKENIZER,
+                        max_seq_len=self.config.MAX_SEQUENCE_LEN,
+                        transform=transformation,
+                    )
         else:
-            eval_dirs = self.config.INFERENCE_PARAMS
             csv = pd.DataFrame({
-                'image': [
-                    os.path.join(eval_dirs['IMAGES_DIR'], img)
-                    for img in os.listdir(eval_dirs['IMAGES_DIR'])
-                ]
+                'image': list(self.config.INFERENCE_PARAMS.image_dir.iterdir())
             })
             self.csv = csv
-            datasets['valid'] = ImageFromCSV(
+            datasets['valid'] = InferenceImage(
                 csv=csv, transform=augmentations['valid']
             )
         return datasets
@@ -177,15 +192,16 @@ class Configurator:
             dict with loaders
         """
         datasets = self._init_dataset()
+        loader_parameters = asdict(self.config.LOADER_PARAMS)
         return {
             key: DataLoader(
                 datasets[key],
-                **self.config.LOADER_PARAMS[key]
+                **loader_parameters[key]
             )
             for key in datasets
         }
 
-    def _init_scheduler(self) -> Union[None, optim.lr_scheduler._LRScheduler]:
+    def _init_scheduler(self) -> Union[None, Type[optim.lr_scheduler.ReduceLROnPlateau]]:
         """
         Method for init learning rate scheduler
 

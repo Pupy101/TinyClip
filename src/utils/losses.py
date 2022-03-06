@@ -48,9 +48,11 @@ class FocalLoss(nn.Module):
         )
         p_t = p * targets + (1 - p) * (1 - targets)
         loss = ce_loss * ((1 - p_t) ** self.gamma)
+
         if self.alpha >= 0:
             alpha_t = self.alpha * targets + (1 - self.alpha) * (1 - targets)
             loss = alpha_t * loss
+
         if self.reduction == "mean":
             loss = loss.mean()
         elif self.reduction == "sum":

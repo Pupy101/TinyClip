@@ -12,7 +12,7 @@ from os.path import join as join_path
 from tqdm import tqdm
 
 from ..configurator import Configurator
-from ..utils.misc import find_max_predict_index
+from ..utils.functions import find_max_predict_index
 
 
 def inference(configuration: Configurator) -> None:
