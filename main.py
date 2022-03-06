@@ -12,10 +12,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     configuration = Configurator(args.config)
-    if clip_config.TYPE_USING == 'train':
+    if clip_config.TYPE_USING.value == 'train':
         print('Training model:')
         train(configuration)
-    elif clip_config.TYPE_USING == 'eval':
+    elif clip_config.TYPE_USING.value == 'evaluation':
         print('Evaluation model:')
         inference(configuration)
     else:
