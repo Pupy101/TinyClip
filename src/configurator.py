@@ -52,8 +52,7 @@ class Configurator:
         self.model = self._init_model()
         self.loaders = self._init_loaders()
         if self.training:
-            if self.config.DATASET_TYPE.value == 'url':
-                self.session = Session()
+            self.session = Session()
             self.optimizer = self._init_optimizer_and_freeze()
             self.scheduler = self._init_scheduler()
             self.criterion = self._init_criterion()

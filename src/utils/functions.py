@@ -95,8 +95,8 @@ def get_image(session: requests.Session, url: str, **kwargs):
     Returns:
         same string or bytes from url
     """
-    resp = session.get(url=url, **kwargs)
-    return resp.raw
+    resp = session.get(url=url, stream=True, **kwargs)
+    return resp.raw.read()
 
 
 def get_annotation_from_parent_model(
