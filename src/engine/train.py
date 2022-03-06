@@ -30,29 +30,29 @@ def train(configuration: Configurator) -> None:
         None
     """
     params = configuration.train_parameters
-    model = params['model']
+    model = params.model
 
-    os.makedirs(params['save_dir'], exist_ok=True)
+    os.makedirs(params.save_dir, exist_ok=True)
 
     min_val_loss = float('inf')
     best_epoch = 0
 
-    for i in range(1, params['n_epoch'] + 1):
+    for i in range(1, params.n_epoch + 1):
         # TODO add f1 score
         train_result = train_epoch(
             model=model,
-            loader=params['loaders']['train'],
-            criterion=params['criterion'],
-            optimizer=params['optimizer'],
-            device=params['device'],
-            scheduler=params['scheduler'],
-            accumulation=params['accumulation'],
+            loader=params.loaders['train'],
+            criterion=params.criterion,
+            optimizer=params.optimizer,
+            device=params.device,
+            scheduler=params.scheduler,
+            accumulation=params.accumulation,
         )
         eval_result = eval_epoch(
             model=model,
-            loader=params['loaders']['valid'],
-            criterion=params['criterion'],
-            device=params['device'],
+            loader=params.loaders['valid'],
+            criterion=params.criterion,
+            device=params.device,
         )
         if eval_result.mean_loss < min_val_loss and train_result.mean_loss > eval_result.mean_loss:
             min_val_loss = eval_result.mean_loss
