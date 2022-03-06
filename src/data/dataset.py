@@ -2,6 +2,7 @@
 Module with different datasets
 """
 
+from io import BytesIO
 from typing import Callable, Dict, Optional, Union
 
 import numpy as np
@@ -220,7 +221,9 @@ class TextAndImageURL(TextAndImage):
         """
 
         url = self.csv.iloc[item, 0]
-        img = self.prepare_image(get_image(session=self.session, url=url))
+        img = get_image(session=self.session, url=url)
+        if img is not None:
+            img = self.prepare_image(BytesIO(img))
 
         text = self.csv.iloc[item, 1]
         tokenized_text = self.prepare_text(text)

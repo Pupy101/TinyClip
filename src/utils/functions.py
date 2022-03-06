@@ -96,7 +96,9 @@ def get_image(session: requests.Session, url: str, **kwargs):
         same string or bytes from url
     """
     resp = session.get(url=url, stream=True, **kwargs)
-    return resp.raw.read()
+    if resp.status_code == 200:
+        return resp.raw.read()
+    return None
 
 
 def get_annotation_from_parent_model(

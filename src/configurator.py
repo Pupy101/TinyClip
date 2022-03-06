@@ -15,6 +15,7 @@ from .data.augmentations import augmentations
 from .data.dataset import (
     InferenceImage, TextAndImage, TextAndImageCachedText, TextAndImageURL
 )
+from .data.collate_funcs import url_collate
 from .model import CLIP, VisionPartCLIP
 from .utils.functions import freeze_weight
 
@@ -193,6 +194,11 @@ class Configurator:
         """
         datasets = self._init_dataset()
         loader_parameters = asdict(self.config.LOADER_PARAMS)
+        if self.config.DATASET_TYPE.value == 'url':
+            for key in loader_parameters:
+                loader_parameters[key].update(
+                    {'collate_fn': url_collate}
+                )
         return {
             key: DataLoader(
                 datasets[key],
