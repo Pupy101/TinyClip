@@ -97,7 +97,7 @@ class VisionPartCLIP(nn.Module):
         Returns:
             model device
         """
-        return next(iter(self.parameters())).device
+        return next(self.parameters()).device
 
 
 class CLIP(nn.Module):
@@ -188,4 +188,4 @@ class CLIP(nn.Module):
         Returns:
             model device
         """
-        return next(iter(self.parameters())).device
+        return next(self.parameters()).device
