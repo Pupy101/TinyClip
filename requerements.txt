@@ -1,3 +1,4 @@
+scikit-learn
 torch
 albumentations==1.1.0
 catalyst==22.4
