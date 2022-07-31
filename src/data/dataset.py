@@ -122,4 +122,4 @@ class MaskedLMDataset(Dataset):
         return masked_ids, perm_msk, input_ids
 
     def __len__(self) -> int:
-        self.df.shape[0]
+        return self.df.shape[0]
