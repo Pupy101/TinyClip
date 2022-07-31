@@ -10,9 +10,9 @@ if TYPE_CHECKING:
 
 @dataclass
 class MultiTaskProportion:
-    clip: float = 1.0
-    image: float = 0.3
-    text: float = 0.3
+    clip: float
+    image: float
+    text: float
 
     def __post_init__(self) -> None:
         assert 0 <= self.clip

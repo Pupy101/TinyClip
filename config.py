@@ -68,7 +68,7 @@ train_config = TrainConfig(
     criterion_text=nn.CrossEntropyLoss(ignore_index=data_config.pad_token_ids),
     device="cuda",
     save_dir="./checkpoints",
-    coefficients=MultiTaskProportion(),
+    coefficients=MultiTaskProportion(clip=10, image=0.1, text=0.1),
     accumulation_steps=2,
     seed=1234,
 )
