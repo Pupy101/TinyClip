@@ -120,3 +120,6 @@ class MaskedLMDataset(Dataset):
         masked_ids = input_ids.clone()
         masked_ids[msk_msk] = self.mask_idx
         return masked_ids, perm_msk, input_ids
+
+    def __len__(self) -> int:
+        self.df.shape[0]
