@@ -118,8 +118,8 @@ class MaskedLMDataset(Dataset):
             tokenized_text, length, self.portion
         )
         masked_ids = input_ids.clone()
-        masked_ids[msk_msk] = self.mask_idx
-        return masked_ids, perm_msk, input_ids
+        masked_ids[msk_msk.type(torch.long)] = self.mask_idx
+        return masked_ids, perm_msk, input_ids.type(torch.long)
 
     def __len__(self) -> int:
         return self.df.shape[0]

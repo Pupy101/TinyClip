@@ -15,9 +15,9 @@ class MultiTaskProportion:
     text: float = 0.3
 
     def __post_init__(self) -> None:
-        assert 0 <= self.clip <= 1
-        assert 0 <= self.image <= 1
-        assert 0 <= self.text <= 1
+        assert 0 <= self.clip
+        assert 0 <= self.image
+        assert 0 <= self.text
 
 
 @dataclass

@@ -81,8 +81,8 @@ class Engine:
             text=masked_ids, perm_mask=perm_mask, is_mlm=True
         )
         loss: Tensor = self.criterion_text(logits, label_ids)
-        top1 = compute_accuracy_1(logits, label_ids)
-        top5 = compute_accuracy_5(logits, label_ids)
+        top1 = compute_accuracy_1(logits.permute(0, 2, 1), label_ids)
+        top5 = compute_accuracy_5(logits.permute(0, 2, 1), label_ids)
         count = masked_ids.size(0) * masked_ids.size(1)
         self.text_metrics.update(top1=top1, top5=top5, loss=loss.item(), count=count)
         return loss

@@ -24,7 +24,7 @@ def freeze_weight(model: nn.Module) -> None:
 
 def compute_f1_batch(logits: Tensor, target: Tensor) -> Tuple[float, float, float]:
     """Function for compute TP, FP, FN from logits."""
-    predict = torch.round(torch.softmax(logits.detach(), dim=-1))
+    predict = torch.softmax(logits.detach(), dim=-1)
     true_positive = predict * target
     false_positive = predict - true_positive
     false_negative = target - true_positive

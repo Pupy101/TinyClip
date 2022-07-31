@@ -35,10 +35,10 @@ class CLIPMetrics(BaseMetric):
     def __str__(self) -> str:
         recall, precision, f1, loss = self.overall()
         return (
-            f"Loss: {loss:.3f}\n"
-            f"Recall: {recall:.3f}\n"
-            f"Precision: {precision:.3f}\n"
-            f"F1: {f1:.3f}"
+            f"\tLoss: {loss:.3f}\n"
+            f"\tRecall: {recall:.3f}\n"
+            f"\tPrecision: {precision:.3f}\n"
+            f"\tF1: {f1:.3f}"
         )
 
 
@@ -62,9 +62,9 @@ class ImageClassificationMetrics(BaseMetric):
     def __str__(self) -> str:
         acc_top1, acc_top5, loss = self.overall()
         return (
-            f"Loss: {loss:.3f}\n"
-            f"Accuracy top 1: {acc_top1:.3f}\n"
-            f"Accuracy top 1: {acc_top5:.3f}"
+            f"\tLoss: {loss:.3f}\n"
+            f"\tAccuracy top 1: {acc_top1:.3f}\n"
+            f"\tAccuracy top 1: {acc_top5:.3f}"
         )
 
 
@@ -91,8 +91,8 @@ class MaskedLMMetric(BaseMetric):
     def __str__(self) -> str:
         acc_top1, acc_top5, perplexity, loss = self.overall()
         return (
-            f"Loss: {loss:.3f}\n"
-            f"Accuracy top 1: {acc_top1:.3f}\n"
-            f"Accuracy top 5: {acc_top5:.3f}\n"
-            f"Perplexity: {perplexity:.3f}"
+            f"\tLoss: {loss:.3f}\n"
+            f"\tAccuracy top 1: {acc_top1:.3f}\n"
+            f"\tAccuracy top 5: {acc_top5:.3f}\n"
+            f"\tPerplexity: {perplexity:.3f}"
         )
