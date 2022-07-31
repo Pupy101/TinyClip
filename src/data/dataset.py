@@ -4,9 +4,9 @@ import numpy as np
 import torch
 from pandas import DataFrame
 from PIL import Image
-from youtokentome import BPE
 from torch import Tensor
 from torch.utils.data import Dataset
+from youtokentome import BPE
 
 
 class ImageDataset(Dataset):

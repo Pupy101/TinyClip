@@ -1,3 +1,5 @@
+import logging
+
 from config import (
     clip_shape,
     data_config,
@@ -7,6 +9,8 @@ from config import (
 )
 from src.engine import Configurator, train
 from src.models import ConvNeXt, TextPartCLIP, VisionPartCLIP, XLNet
+
+logging.basicConfig(format="%(message)s", filename="train.log", filemode="w")
 
 vision_net = ConvNeXt(config=image_model_config)
 text_net = XLNet(config=text_model_config)

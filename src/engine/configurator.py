@@ -2,8 +2,8 @@ from pathlib import Path
 from typing import Tuple, Union
 
 import pandas as pd
-from youtokentome import BPE
 from torch.utils.data import DataLoader
+from youtokentome import BPE
 
 from src.data import CLIPDataset, ImageDataset, MaskedLMDataset
 from src.models import CLIP, TextPartCLIP, VisionPartCLIP
