@@ -1,7 +1,6 @@
 import argparse
 import json
 import re
-
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, List, Union
@@ -56,17 +55,18 @@ def create_dataset(data: Dict[str, Any], directories: List[Path]) -> pd.DataFram
 
 
 def open_json(json_path: Union[str, Path]) -> Dict[str, Any]:
+    """Function for open *.json file."""
     assert check_exist(json_path), f"File {json_path} doesn't exists"
     with open(json_path) as file:
         data = json.load(file)
     return data
 
 
-def union_jsons(jsons: List[Dict[str, Any]]) -> Dict[str, Any]:
+def union_jsons(list_jsons: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Union many jsons into one."""
-    assert len(jsons) > 0, "Get one or more jsons"
-    copy_json = deepcopy(jsons[0])
-    for data in jsons[1:]:
+    assert len(list_jsons) > 0, "Get one or more jsons"
+    copy_json = deepcopy(list_jsons[0])
+    for data in list_jsons[1:]:
         copy_json["images"].append(data["images"])
         copy_json["dataset"] += "/" + data["dataset"]
     return copy_json

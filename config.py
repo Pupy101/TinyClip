@@ -1,76 +1,74 @@
-from pathlib import Path
-from typing import Callable, Dict, List, Union
+from torch import nn, optim
 
-import torch
-
-from torch import optim, nn
-from transformers import AutoTokenizer, AutoModel
-
+from src.data import augmentations, transform_xlnet
+from src.types import (
+    ConvNeXtConfig,
+    DataConfig,
+    MultiTaskProportion,
+    TrainConfig,
+    XLNetConfig,
+)
 from src.utils.losses import FocalLoss
-from src.model import WrapperModelFromHuggingFace, VisionModelPreparator
-from src.classes.config import (
-    DatasetType,
-    CLIPDatasets,
-    CLIPLoaders,
-    InferenceParameters,
-    LoaderParameters,
-    ModelWeight,
-    TypeUsing,
+
+image_model_config = ConvNeXtConfig(
+    in_channels=3,
+    out_channels=256,
+    depths=[3, 3, 9, 3],
+    dims=[96, 192, 384, 768],
+    drop_path_rate=0.5,
+)
+text_model_config = XLNetConfig(
+    num_layers=4,
+    vocab_size=8_000,
+    model_dim=256,
+    num_heads=4,
+    feedforward_dim=1024,
+    dropout=0.5,
+    activation="gelu",
+    pad_idx=0,
 )
 
+clip_shape = 256
 
-class Config:
-    TYPE_USING: TypeUsing = TypeUsing.TRAIN
+data_config = DataConfig(
+    train_clip_csv="",
+    valid_clip_csv="",
+    clip_name_image_column="image",
+    clip_name_text_column="text",
+    clip_batch_size_train=16,
+    clip_batch_size_valid=32,
+    train_image_classification_csv="",
+    valid_image_classification_csv="",
+    image_classification_name_image_column="image",
+    image_classification_name_label_column="class",
+    image_classification_count_classes=1000,
+    image_classification_batch_size_train=16,
+    image_classification_batch_size_valid=16,
+    train_masked_lm_csv="",
+    valid_masked_lm_csv="",
+    masked_lm_name_text_column="text",
+    masked_lm_batch_size_train=16,
+    masked_lm_batch_size_valid=16,
+    cls_token_ids=0,
+    pad_token_ids=1,
+    mask_token_idx=3,
+    tokens_max_len=20,
+    masked_portion=0.25,
+    image_augmentations=augmentations,
+    text_tokenizer_checkpoint="",
+    num_workers=2,
+    mask_text_transform=transform_xlnet,
+)
 
-    DATASET_TYPE: DatasetType = DatasetType.URL
-    DATASETS_CSV: CLIPDatasets = CLIPDatasets(
-        train=Path('/content/train.csv'),
-        valid=Path('/content/valid.csv'),
-    )
-
-    LOADER_PARAMS: CLIPLoaders = CLIPLoaders(
-        train=LoaderParameters(
-            batch_size=840,
-            shuffle=True,
-        ),
-        valid=LoaderParameters(
-            batch_size=840,
-            shuffle=True,
-        ),
-    )
-
-    MODEL_VISION: nn.Module = VisionModelPreparator(model='mobilenet_v3_small', pretrained=True)\
-        .change_layer_to_mlp(layer_name='classifier', mlp_shapes=[576, 640, 768], activation=nn.PReLU).model
-
-    MAX_SEQUENCE_LEN: int = 24
-    TOKENIZER: Callable = AutoTokenizer.from_pretrained('cointegrated/LaBSE-en-ru')
-
-    MODEL_TEXT: nn.Module = WrapperModelFromHuggingFace(
-        AutoModel.from_pretrained('cointegrated/LaBSE-en-ru'),
-        getting_attr_from_model='pooler_output',
-    )
-
-    PATH_TO_WEIGHT: ModelWeight = ModelWeight(
-        save=Path('./training/weights'), pretrained=None
-    )
-
-    DEVICE: torch.device = torch.device('cuda')
-    NUM_EPOCH: int = 30
-    ACCUMULATION: int = 16
-
-    OPTIMIZER: optim.Optimizer = optim.AdamW
-    OPTIMIZER_PARAMS: Dict[str, float] = {'lr': 3e-4}
-
-    CRITERION: nn.Module = FocalLoss
-    CRITERION_PARAMS: Dict[str, Union[int, float]] = {
-        'alpha': 0.2, 'gamma': 2,
-    }
-
-    SCHEDULER_LR = optim.lr_scheduler.OneCycleLR  # other scheduler or None
-    SCHEDULER_LR_PARAMS = {'anneal_strategy': 'cos'}
-
-    INFERENCE_PARAMS: InferenceParameters = InferenceParameters(
-        image_dir=Path('/content/CLIP/testing'),
-        prediction_dir=Path('/content/CLIP/prediction'),
-        classes=['Dog', 'Cat', 'Human', 'Car'],
-    )
+train_config = TrainConfig(
+    n_epochs=5,
+    optimizer=optim.AdamW,
+    criterion_clip=FocalLoss(),
+    criterion_image=nn.CrossEntropyLoss(),
+    criterion_text=nn.CrossEntropyLoss(),
+    device="cuda",
+    save_dir="",
+    coefficients=MultiTaskProportion(),
+    accumulation_steps=2,
+    seed=1234,
+)

@@ -1,4 +1,7 @@
-# Homemade CLIP with training only image part.
+# Experiment with CLIP using multi-task learning:
+1. Default CLIP Learning;
+2. Learning image part on classification task;
+3. MLM learning text part as [XLNet](https://arxiv.org/pdf/1906.08237.pdf).
 
 ## For use:
 1. Download dataset; (for training I use 3 datasets [coco](https://www.kaggle.com/mrviswamitrakaushik/image-captioning-data), [flickr8k](https://www.kaggle.com/ashish2001/original-flickr8k-dataset), [flikr30k](https://www.kaggle.com/adityajn105/flickr30k))
@@ -9,15 +12,12 @@
     --coco_valid '/content/val2014' --flickr8k '/content/Flickr8k_Dataset/Flicker8k_Dataset' \
     --flickr30k '/content/Images/flickr30k_images' --target_csv '/content'
 ```
-3. Configure the file `config.py`;
 4. Start:
-```bash 
+```bash
 !python main.py
 ```
-
-#### If you don't need training skip step 1 and step 2.
 
 ---
 
 #### Pretrained weights:
-```coming soon```
+```Coming soon```

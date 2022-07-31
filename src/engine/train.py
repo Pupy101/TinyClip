@@ -1,206 +1,199 @@
-"""
-Script with training of CLIP
-"""
-
-import os
-
-from os.path import join as path_join
-from typing import Any, Optional, Tuple, Union
+import logging
+from datetime import datetime
 
 import torch
-
-from torch import nn, optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from ..configurator import Configurator
-from ..classes.engine import OneEpochResults
-from ..model.clip import CLIP
-from ..utils.functions import compute_f1_batch
+from src.types import MultiTaskProportion, TrainingParameters
+from src.utils.functions import get_batch
+
+from .engine import Engine
+
+logger = logging.getLogger(__file__)
+
+__DATE_FORMAT = "%Y_%m_%b_%H_%M_%S"
 
 
-def train(configuration: Configurator) -> None:
-    """
-    Function for training clip with the specified configuration
+def train(parameters: TrainingParameters) -> None:
+    """Function for training model with the specified parameters."""
 
-    Args:
-        configuration: configuration of model, and it's using parameters
+    if not parameters.save_dir.exists():
+        parameters.save_dir.mkdir(parents=True)
 
-    Returns:
-        None
-    """
-    params = configuration.train_parameters
-    model = params.model
-
-    os.makedirs(params.save_dir, exist_ok=True)
-
-    min_val_loss = float('inf')
+    min_val_loss = float("inf")
     best_epoch = 0
 
-    for i in range(1, params.n_epoch + 1):
-        # TODO add f1 score
-        train_result = train_epoch(
-            model=model,
-            loader=params.loaders['train'],
-            criterion=params.criterion,
-            optimizer=params.optimizer,
-            device=params.device,
-            scheduler=params.scheduler,
-            accumulation=params.accumulation,
+    for i in range(1, parameters.n_epochs + 1):
+        logger.info("Epoch %s", i)
+        train_loss = train_epoch(
+            engine=parameters.engine,
+            clip_loader=parameters.dataloaders.clip.train,
+            image_loader=parameters.dataloaders.image.train,
+            text_loader=parameters.dataloaders.text.train,
+            accumulation=parameters.accumulation_steps,
+            coefficients=parameters.coefficients,
         )
-        eval_result = eval_epoch(
-            model=model,
-            loader=params.loaders['valid'],
-            criterion=params.criterion,
-            device=params.device,
+        eval_loss = eval_epoch(
+            engine=parameters.engine,
+            clip_loader=parameters.dataloaders.clip.train,
+            image_loader=parameters.dataloaders.image.train,
+            text_loader=parameters.dataloaders.text.train,
+            coefficients=parameters.coefficients,
         )
-        if eval_result.mean_loss < min_val_loss and train_result.mean_loss > eval_result.mean_loss:
-            min_val_loss = eval_result.mean_loss
+        if eval_loss < min_val_loss and train_loss > eval_loss:
+            min_val_loss = eval_loss
             best_epoch = i
+            checkpoint_name = "CLIP_" + datetime.now().strftime(__DATE_FORMAT) + ".pt"
             torch.save(
-                model.state_dict(),
-                path_join(params['save_dir'], f'Model_epoch_{best_epoch}.pth'),
+                parameters.engine.clip.state_dict(),
+                parameters.save_dir / checkpoint_name,
             )
-        print(
-            f'Epoch {i:<3}\tTrain loss:{train_result.mean_loss:<7.4f} Precision:{train_result.precision:<7.4f} '
-            f'Recall:{train_result.recall:<7.4f} F1:{train_result.f1:<7.4f}'
-            f'\tValid loss:{eval_result.mean_loss:<7.4f} Precision:{eval_result.precision:<7.4f} '
-            f'Recall:{eval_result.recall:<7.4f} F1:{eval_result.f1:<7.4f}'
-        )
-    print(f'Best epoch: {best_epoch}\t Valid loss: {min_val_loss:<10.4f}')
+    logger.info("Best epoch: %s", best_epoch)
+    logger.info("Validation loss: %s", min_val_loss)
 
 
 def train_epoch(
-        model: CLIP,
-        loader: DataLoader,
-        criterion: nn.Module,
-        optimizer: optim.Optimizer,
-        device: Union[str, torch.device],
-        scheduler: Optional[Any] = None,
-        accumulation: Optional[int] = 1,
-) -> OneEpochResults:
-    """
-    Function for train model on one epoch
+    engine: Engine,
+    clip_loader: DataLoader,
+    image_loader: DataLoader,
+    text_loader: DataLoader,
+    accumulation: int,
+    coefficients: MultiTaskProportion,
+) -> float:
+    """Function for train model on one epoch."""
+    engine.train()
+    logger.info("Start train epoch ...")
 
-    Args:
-        model: CLIP
-        loader: torch DataLoader
-        criterion: criterion for training
-        optimizer: optimizer for training
-        device: device for training
-        scheduler: scheduler or None
-        accumulation: count accumulation batches or None
+    clip_iteration = True
+    image_iteration = True
+    text_iteration = True
 
-    Returns:
-        mean train loss on epoch, recall, precision, f1
-    """
-    model.train()
-    train_loss = 0
-    true_positive, false_positive, false_negative = 0, 0, 0
-    accum_image_emb, accum_text_emb = [], []
+    clip_iterator = iter(clip_loader)
+    image_iterator = iter(image_loader)
+    text_iterator = iter(text_loader)
 
-    optimizer.zero_grad()
-    from ..model import CLIP
-    model: CLIP
+    step_ids = 0
+    length_loader = len(clip_loader)
 
-    for i, batch in tqdm(enumerate(loader, 1), leave=False):
-        image, text = batch['image'].to(device), batch['text'].to(device)
+    pbar = tqdm(total=length_loader, desc="Batch: | Loss: ", leave=False)
 
-        text_features = batch.get('text_features', None)
-        if text_features is not None:
-            text_features = text_features.to(device)
+    while clip_iteration:
+        batch = get_batch(clip_iterator)
+        if batch is None:
+            clip_iteration = False
+            break
+        loss = engine.clip_forward(batch) * coefficients.clip
 
-        labels = torch.diag(torch.ones(image.size(0))).to(device)
+        if image_iteration:
+            batch = get_batch(image_iterator)
+            if batch is None:
+                image_iteration = False
+                logger.info("Image loader empty on step: %s", step_ids + 1)
+            else:
+                loss += engine.image_part_forward(batch) * coefficients.image
 
-        if accumulation > 1:
-            output = model(
-                image=image, text=text, text_features=text_features, only_features=True
-            )
-            accum_image_emb.append(output.embeddings.image)
-            accum_text_emb.append(output.embeddings.text)
+        if text_iteration:
+            batch = get_batch(text_iterator)
+            if batch is None:
+                text_iteration = False
+                logger.info("Text loader empty on step: %s", step_ids + 1)
+            else:
+                loss += engine.text_part_forward(batch) * coefficients.text
 
-            if i % accumulation and i != len(loader):
-                continue
-
-            overall_image_emb = torch.cat(accum_image_emb, dim=0)
-            overall_text_emb = torch.cat(accum_text_emb, dim=0)
-
-            image_logits, text_logits = model.cv_model.compute_logit(
-                image_embedding=overall_image_emb,
-                text_embedding=overall_text_emb,
-                logit_scale=model.vision_part.logit_scale,
-            )
-
-        else:
-            output = model(image=image, text=text, text_features=text_features)
-            image_logits, text_logits = output.image_logit, output.text_logit
-
-        loss = criterion(image_logits, labels) + criterion(text_logits, labels)
         loss.backward()
 
-        optimizer.step()
-        optimizer.zero_grad()
+        if ((step_ids + 1) % accumulation == 0) or (step_ids + 1 == len(length_loader)):
+            engine.optimization_step()
 
-        if scheduler is not None:
-            scheduler.step()
+        step_ids += 1
+        pbar.set_description_str(
+            f"Batch: {step_ids} | Loss: {loss.item:.2f} ", refresh=True
+        )
+        pbar.update(1)
 
-        accum_image_emb, accum_text_emb = [], []
-        train_loss += loss.item()
-        tp, fp, fn = compute_f1_batch(image_logits.detach(), labels)
-        true_positive += tp
-        false_positive += fp
-        false_negative += fn
+    logger.info("Overall step count: %s", step_ids)
+    clip_metrics = engine.clip_metrics
+    logger.info("CLIP metrics:")
+    logger.info(str(clip_metrics))
+    image_metrics = engine.image_metrics
+    logger.info("Image classification metrics:")
+    logger.info(str(image_metrics))
+    text_metrics = engine.text_metrics
+    logger.info("Masked LM metrics:")
+    logger.info(str(text_metrics))
 
-    recall = true_positive / (true_positive + false_positive)
-    precision = true_positive / (true_positive + false_negative)
-    f1 = 2 * precision * recall / (precision + recall)
+    *_, overall_loss = clip_metrics.overall()
 
-    return OneEpochResults(mean_loss=train_loss / i, recall=recall, precision=precision, f1=f1)
+    return overall_loss
 
 
 @torch.no_grad()
 def eval_epoch(
-        model: CLIP,
-        loader: DataLoader,
-        criterion: nn.Module,
-        device: Union[str, torch.device]
-) -> OneEpochResults:
-    """
-    Function for evaluation model on one epoch
+    engine: Engine,
+    clip_loader: DataLoader,
+    image_loader: DataLoader,
+    text_loader: DataLoader,
+    coefficients: MultiTaskProportion,
+) -> float:
+    """Function for evaluation model on one epoch."""
 
-    Args:
-        model: CLIP
-        loader: torch DataLoader
-        criterion: criterion for training
-        device: device for evaluation
+    engine.eval()
+    logger.info("Start evaluation epoch ...")
 
-    Returns:
-        mean evaluation loss on epoch, recall, precision, f1
-    """
-    model.eval()
-    eval_loss = 0
-    true_positive, false_positive, false_negative = 0, 0, 0
-    for i, batch in tqdm(enumerate(loader, 1), leave=False):
-        image, text = batch['image'].to(device), batch['text'].to(device)
-        text_features = batch.get('text_features', None)
-        if text_features is not None:
-            text_features = text_features.to(device)
+    clip_iteration = True
+    image_iteration = True
+    text_iteration = True
 
-        output = model(image=image, text=text, text_features=text_features)
+    clip_iterator = iter(clip_loader)
+    image_iterator = iter(image_loader)
+    text_iterator = iter(text_loader)
 
-        labels = torch.diag(torch.ones(image.size(0))).to(device)
+    step_ids = 0
+    length_loader = len(clip_loader)
 
-        loss = criterion(output.image_logit, labels) + criterion(output.text_logit, labels)
+    pbar = tqdm(total=length_loader, desc="Batch: | Loss: ", leave=False)
 
-        tp, fp, fn = compute_f1_batch(output.image_logit.detach(), labels)
-        true_positive += tp
-        false_positive += fp
-        false_negative += fn
-        
-        eval_loss += loss.item()
+    while clip_iteration:
+        batch = get_batch(clip_iterator)
+        if batch is None:
+            clip_iteration = False
+            break
+        loss = engine.clip_forward(batch) * coefficients.clip
 
-    recall = true_positive / (true_positive + false_positive)
-    precision = true_positive / (true_positive + false_negative)
-    f1 = 2 * precision * recall / (precision + recall)
+        if image_iteration:
+            batch = get_batch(image_iterator)
+            if batch is None:
+                image_iteration = False
+                logger.info("Image loader empty on step: %s", step_ids + 1)
+            else:
+                loss += engine.image_part_forward(batch) * coefficients.image
 
-    return OneEpochResults(mean_loss=eval_loss / i, recall=recall, precision=precision, f1=f1)
+        if text_iteration:
+            batch = get_batch(text_iterator)
+            if batch is None:
+                text_iteration = False
+                logger.info("Text loader empty on step: %s", step_ids + 1)
+            else:
+                loss += engine.text_part_forward(batch) * coefficients.text
+
+        step_ids += 1
+        pbar.set_description_str(
+            f"Batch: {step_ids} | Loss: {loss.item:.2f} ", refresh=True
+        )
+        pbar.update(1)
+
+    logger.info("Overall step count: %s", step_ids)
+    clip_metrics = engine.clip_metrics
+    logger.info("CLIP metrics:")
+    logger.info(str(clip_metrics))
+    image_metrics = engine.image_metrics
+    logger.info("Image classification metrics:")
+    logger.info(str(image_metrics))
+    text_metrics = engine.text_metrics
+    logger.info("Masked LM metrics:")
+    logger.info(str(text_metrics))
+
+    *_, overall_loss = clip_metrics.overall()
+
+    return overall_loss

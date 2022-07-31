@@ -1,6 +1,5 @@
 """
 Module with training and inference for CLIP
 """
-
-from .inference import inference
+from .configurator import Configurator
 from .train import train
