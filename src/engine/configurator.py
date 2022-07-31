@@ -2,8 +2,7 @@ from pathlib import Path
 from typing import Tuple, Union
 
 import pandas as pd
-from tokenizers import Tokenizer
-from tokenizers.models import BPE
+from youtokentome import BPE
 from torch.utils.data import DataLoader
 
 from src.data import CLIPDataset, ImageDataset, MaskedLMDataset
@@ -39,13 +38,14 @@ class Configurator:
         assert csv_path.is_file(), f"File {str(csv_path)} doesn't exist"
         return pd.read_csv(csv_path)
 
-    def configurate_tokenizer(self) -> Tokenizer:
-        model = BPE.from_file(self.data_config.text_tokenizer_checkpoint)
-        tokenizer = Tokenizer(model)
-        return Tokenizer
+    def configurate_tokenizer(self) -> BPE:
+        checkpoint = Path(self.data_config.text_tokenizer_checkpoint)
+        assert checkpoint.exists()
+        tokenizer = BPE(model=str(checkpoint))
+        return tokenizer
 
     def configurate_clip_datasets(
-        self, tokenizer: Tokenizer
+        self, tokenizer: BPE
     ) -> Tuple[CLIPDataset, CLIPDataset]:
         train_clip_df = self.open_csv(self.data_config.train_clip_csv)
         valid_clip_df = self.open_csv(self.data_config.valid_clip_csv)
@@ -89,7 +89,7 @@ class Configurator:
         return train_image_dataset, valid_image_dataset
 
     def configurate_text_datasets(
-        self, tokenizer: Tokenizer
+        self, tokenizer: BPE
     ) -> Tuple[MaskedLMDataset, MaskedLMDataset]:
         train_text_df = self.open_csv(self.data_config.train_masked_lm_csv)
         valid_text_df = self.open_csv(self.data_config.valid_masked_lm_csv)

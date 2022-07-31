@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from pandas import DataFrame
 from PIL import Image
-from tokenizers import Tokenizer
+from youtokentome import BPE
 from torch import Tensor
 from torch.utils.data import Dataset
 
@@ -51,7 +51,7 @@ class CLIPDataset(ImageDataset):
         self,
         dataframe: DataFrame,
         image_transform: Callable,
-        tokenizer: Tokenizer,
+        tokenizer: BPE,
         name_image_column: str = "image",
         name_text_column: str = "text",
         cls_token_ids: int = 0,
@@ -87,7 +87,7 @@ class MaskedLMDataset(Dataset):
     def __init__(
         self,
         dataframe: DataFrame,
-        tokenizer: Tokenizer,
+        tokenizer: BPE,
         transform: Callable[[List[int], int, float], Tuple[Tensor, Tensor, Tensor]],
         name_text_column: str = "text",
         mask_token_idx: int = 0,
