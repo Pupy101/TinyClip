@@ -24,6 +24,8 @@ def train(parameters: TrainingParameters) -> None:
     min_val_loss = float("inf")
     best_epoch = 0
 
+    logger.info("Start training...")
+
     for i in range(1, parameters.n_epochs + 1):
         logger.info("Epoch %s", i)
         train_loss = train_epoch(
@@ -36,7 +38,7 @@ def train(parameters: TrainingParameters) -> None:
         )
         eval_loss = eval_epoch(
             engine=parameters.engine,
-            clip_loader=parameters.dataloaders.clip.train,
+            clip_loader=parameters.dataloaders.clip.validation,
             image_loader=parameters.dataloaders.image.train,
             text_loader=parameters.dataloaders.text.train,
             coefficients=parameters.coefficients,
@@ -111,8 +113,9 @@ def train_epoch(
             engine.optimization_step()
 
         step_ids += 1
-        pbar_desc = f"Batch: {step_ids} | Loss: {loss.item():.2f} "
-        pbar.set_description_str(pbar_desc, refresh=True)
+        pbar.set_description_str(
+            f"Batch train: {step_ids} | Loss: {loss.item():.2f} ", refresh=True
+        )
         pbar.update(1)
 
     logger.info("Overall step count: %s", step_ids)
@@ -181,8 +184,9 @@ def eval_epoch(
                 loss += engine.text_part_forward(batch) * coefficients.text
 
         step_ids += 1
-        pbar_desc = f"Batch: {step_ids} | Loss: {loss.item():.2f} "
-        pbar.set_description_str(pbar_desc, refresh=True)
+        pbar.set_description_str(
+            f"Batch valid: {step_ids} | Loss: {loss.item():.2f} ", refresh=True
+        )
         pbar.update(1)
 
     logger.info("Overall step count: %s", step_ids)

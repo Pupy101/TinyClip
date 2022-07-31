@@ -10,7 +10,9 @@ from config import (
 from src.engine import Configurator, train
 from src.models import ConvNeXt, TextPartCLIP, VisionPartCLIP, XLNet
 
-logging.basicConfig(format="%(message)s", filename="train.log", filemode="w")
+logging.basicConfig(
+    format="%(message)s", filename="train.log", filemode="w", level=logging.INFO
+)
 
 vision_net = ConvNeXt(config=image_model_config)
 text_net = XLNet(config=text_model_config)
