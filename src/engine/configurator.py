@@ -185,6 +185,8 @@ class Configurator:
             scheduler = self.train_config.scheduler(
                 optimizer, **self.train_config.scheduler_params
             )
+        else:
+            scheduler = None
         return Engine(
             seed=self.train_config.seed,
             clip=clip,
