@@ -70,77 +70,69 @@ def train_epoch(
     engine.train()
     logger.info("Start train epoch ...")
 
-    length_clip = len(clip_loader)
+    length = len(clip_loader) + len(image_loader) + len(text_loader)
 
-    image_iteration = True
-    text_iteration = True
+    pbar = tqdm(total=length, desc="Batch: | Loss: ", leave=False)
 
-    clip_iterator = iter(clip_loader)
-    image_iterator = iter(image_loader)
-    text_iterator = iter(text_loader)
+    for batch in clip_loader:
 
-    step_ids = 0
-    length_loader = len(clip_loader)
+        loss = engine.clip_forward(batch)
 
-    pbar = tqdm(total=length_loader, desc="Batch: | Loss: ", leave=False)
+        if loss is not None:
 
-    for _ in range(length_clip):
-        overall_loss: Optional[torch.Tensor] = None
+            loss *= coefficients.clip
 
-        batch = get_batch(clip_iterator)
+            loss.backward()
+            engine.optimization_step()
 
-        if batch is not None:
-            loss = engine.clip_forward(batch)
-            if loss is not None:
-                overall_loss = loss * coefficients.clip
-
-        batch = get_batch(image_iterator)
-
-        if batch is None and image_iteration:
-            image_iteration = False
-            logger.info("Image loader empty on step: %s", step_ids + 1)
-        elif batch is not None and image_iteration:
-            loss = engine.image_part_forward(batch)
-            if loss is not None and overall_loss is not None:
-                overall_loss += loss * coefficients.image
-            elif loss is not None:
-                overall_loss = loss * coefficients.image
-
-        batch = get_batch(text_iterator)
-
-        if batch is None and text_iteration:
-            text_iteration = False
-            logger.info("Text loader empty on step: %s", step_ids + 1)
-        elif batch is not None and text_iteration:
-            loss = engine.text_part_forward(batch)
-            if loss is not None and overall_loss is not None:
-                overall_loss += loss * coefficients.text
-            elif loss is not None:
-                overall_loss = loss * coefficients.text
-
-        step_ids += 1
-        if overall_loss is not None:
-            overall_loss.backward()
             pbar.set_description_str(
-                f"Batch train: {step_ids} | Loss: {overall_loss.item():.2f}",
+                f"Train CLIP Loss: {loss.item():.2f}", refresh=True
+            )
+        pbar.update(1)
+
+    for batch in image_loader:
+
+        loss = engine.image_part_forward(batch)
+
+        if loss is not None:
+
+            loss *= coefficients.image
+
+            loss.backward()
+            engine.optimization_step()
+
+            pbar.set_description_str(
+                f"Train Image Loss: {loss.item():.2f}", refresh=True
+            )
+        pbar.update(1)
+
+    for batch in text_loader:
+
+        loss = engine.text_part_forward(batch)
+
+        if loss is not None:
+
+            loss *= coefficients.image
+
+            loss.backward()
+            engine.optimization_step()
+
+            pbar.set_description_str(
+                f"Train Text Loss: {loss.item():.2f}",
                 refresh=True,
             )
         pbar.update(1)
 
-    logger.info("Overall step count: %s", step_ids)
-    clip_metrics = engine.clip_metrics
     logger.info("CLIP metrics:")
-    logger.info(str(clip_metrics))
-    image_metrics = engine.image_metrics
+    logger.info(str(engine.clip_metrics))
     logger.info("Image classification metrics:")
-    logger.info(str(image_metrics))
-    text_metrics = engine.text_metrics
+    logger.info(str(engine.image_metrics))
     logger.info("Masked LM metrics:")
-    logger.info(str(text_metrics))
+    logger.info(str(engine.text_metrics))
 
-    *_, overall_loss_epoch = clip_metrics.overall()
+    *_, overall_loss = engine.clip_metrics.overall()
 
-    return overall_loss_epoch
+    return overall_loss
 
 
 @torch.no_grad()
@@ -156,73 +148,57 @@ def eval_epoch(
     engine.eval()
     logger.info("Start evaluation epoch ...")
 
-    length_clip = len(clip_loader)
+    length = len(clip_loader) + len(image_loader) + len(text_loader)
 
-    image_iteration = True
-    text_iteration = True
+    pbar = tqdm(total=length, desc="Batch: | Loss: ", leave=False)
 
-    clip_iterator = iter(clip_loader)
-    image_iterator = iter(image_loader)
-    text_iterator = iter(text_loader)
+    for batch in clip_loader:
 
-    step_ids = 0
-    length_loader = len(clip_loader)
+        loss = engine.clip_forward(batch)
 
-    pbar = tqdm(total=length_loader, desc="Batch: | Loss: ", leave=False)
+        if loss is not None:
 
-    for _ in range(length_clip):
-        overall_loss: Optional[torch.Tensor] = None
+            loss *= coefficients.clip
 
-        batch = get_batch(clip_iterator)
-
-        if batch is not None:
-            loss = engine.clip_forward(batch)
-            if loss is not None:
-                overall_loss = loss * coefficients.clip
-
-        batch = get_batch(image_iterator)
-
-        if batch is None and image_iteration:
-            image_iteration = False
-            logger.info("Image loader empty on step: %s", step_ids + 1)
-        elif batch is not None and image_iteration:
-            loss = engine.image_part_forward(batch)
-            if loss is not None and overall_loss is not None:
-                overall_loss += loss * coefficients.image
-            elif loss is not None:
-                overall_loss = loss * coefficients.image
-
-        batch = get_batch(text_iterator)
-
-        if batch is None and text_iteration:
-            text_iteration = False
-            logger.info("Text loader empty on step: %s", step_ids + 1)
-        elif batch is not None and text_iteration:
-            loss = engine.text_part_forward(batch)
-            if loss is not None and overall_loss is not None:
-                overall_loss += loss * coefficients.text
-            elif loss is not None:
-                overall_loss = loss * coefficients.text
-
-        step_ids += 1
-        if overall_loss is not None:
             pbar.set_description_str(
-                f"Batch valid: {step_ids} | Loss: {overall_loss.item():.2f}",
+                f"Train CLIP Loss: {loss.item():.2f}", refresh=True
+            )
+        pbar.update(1)
+
+    for batch in image_loader:
+
+        loss = engine.image_part_forward(batch)
+
+        if loss is not None:
+
+            loss *= coefficients.image
+
+            pbar.set_description_str(
+                f"Train Image Loss: {loss.item():.2f}", refresh=True
+            )
+        pbar.update(1)
+
+    for batch in text_loader:
+
+        loss = engine.text_part_forward(batch)
+
+        if loss is not None:
+
+            loss *= coefficients.image
+
+            pbar.set_description_str(
+                f"Train Text Loss: {loss.item():.2f}",
                 refresh=True,
             )
         pbar.update(1)
 
-    logger.info("Overall step count: %s", step_ids)
-    clip_metrics = engine.clip_metrics
     logger.info("CLIP metrics:")
-    logger.info(str(clip_metrics))
-    image_metrics = engine.image_metrics
+    logger.info(str(engine.clip_metrics))
     logger.info("Image classification metrics:")
-    logger.info(str(image_metrics))
-    text_metrics = engine.text_metrics
+    logger.info(str(engine.image_metrics))
     logger.info("Masked LM metrics:")
-    logger.info(str(text_metrics))
+    logger.info(str(engine.text_metrics))
 
-    *_, overall_loss_epoch = clip_metrics.overall()
+    *_, overall_loss = engine.clip_metrics.overall()
 
-    return overall_loss_epoch
+    return overall_loss
