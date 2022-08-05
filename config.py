@@ -56,7 +56,7 @@ data_config = DataConfig(
     masked_portion=0.25,
     image_augmentations=augmentations,
     text_tokenizer_checkpoint="/content/bpe_8000",
-    num_workers=2,
+    num_workers=4,
     mask_text_transform=transform_xlnet,
 )
 
