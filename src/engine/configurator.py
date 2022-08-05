@@ -196,6 +196,7 @@ class Configurator:
             optimizer=optimizer,
             device=self.train_config.device,
             scheduler=scheduler,
+            count_accumulated_batches=self.train_config.accumulation_steps,
         )
 
     def configurate(self) -> TrainingParameters:
@@ -208,7 +209,6 @@ class Configurator:
             n_epochs=self.train_config.n_epochs,
             engine=engine,
             dataloaders=loaders,
-            accumulation_steps=self.train_config.accumulation_steps,
             save_dir=save_dir,
             coefficients=self.train_config.coefficients,
         )

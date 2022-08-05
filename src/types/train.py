@@ -25,6 +25,5 @@ class TrainingParameters:
     n_epochs: int
     engine: "Engine"
     dataloaders: MultiTaskDataLoaders
-    accumulation_steps: int
     save_dir: Path
     coefficients: MultiTaskProportion

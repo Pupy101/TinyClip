@@ -85,7 +85,7 @@ class CLIP(BaseModel):
 
     def compute_logit(self, embeddings: Embeddings) -> Logits:
         """Method for compute logits between image and text embeddings."""
-        image_logit = self.logit_scale * embeddings.image @ embeddings.text.t()
+        image_logit = self.logit_scale.exp() * embeddings.image @ embeddings.text.t()
         text_logit = image_logit.t()
         return Logits(image=image_logit, text=text_logit)
 

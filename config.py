@@ -69,6 +69,6 @@ train_config = TrainConfig(
     device="cuda",
     save_dir="./checkpoints",
     coefficients=MultiTaskProportion(clip=10, image=0.1, text=0.1),
-    accumulation_steps=2,
+    accumulation_steps=10,
     seed=1234,
 )
