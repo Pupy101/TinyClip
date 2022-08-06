@@ -161,10 +161,11 @@ def eval_epoch(
             loss *= coefficients.clip
 
             pbar.set_description_str(
-                f"Train CLIP Loss: {loss.item():.2f}", refresh=True
+                f"Valid CLIP Loss: {loss.item():.2f}", refresh=True
             )
         pbar.update(1)
 
+    engine.eval()
     for batch in image_loader:
 
         loss = engine.image_part_forward(batch)
@@ -174,9 +175,11 @@ def eval_epoch(
             loss *= coefficients.image
 
             pbar.set_description_str(
-                f"Train Image Loss: {loss.item():.2f}", refresh=True
+                f"Valid Image Loss: {loss.item():.2f}", refresh=True
             )
         pbar.update(1)
+
+    engine.eval()
 
     for batch in text_loader:
 
@@ -187,7 +190,7 @@ def eval_epoch(
             loss *= coefficients.image
 
             pbar.set_description_str(
-                f"Train Text Loss: {loss.item():.2f}",
+                f"Valid Text Loss: {loss.item():.2f}",
                 refresh=True,
             )
         pbar.update(1)
