@@ -165,7 +165,6 @@ def eval_epoch(
             )
         pbar.update(1)
 
-    engine.eval()
     for batch in image_loader:
 
         loss = engine.image_part_forward(batch)
@@ -178,8 +177,6 @@ def eval_epoch(
                 f"Valid Image Loss: {loss.item():.2f}", refresh=True
             )
         pbar.update(1)
-
-    engine.eval()
 
     for batch in text_loader:
 

@@ -153,7 +153,7 @@ class Engine:
         loss: Tensor = self.criterion_text(text_logits, text_labels)
         top1 = compute_accuracy_1(text_logits.permute(0, 2, 1), text_labels)
         top5 = compute_accuracy_5(text_logits.permute(0, 2, 1), text_labels)
-        count = text_logits.size(0) * text_logits.size(1)
+        count = text_logits.size(0)
         self.text_metrics.update(top1=top1, top5=top5, loss=loss.item(), count=count)
         self.reset()
         return loss
