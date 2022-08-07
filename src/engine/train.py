@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from src.types import MultiTaskProportion, TrainConfig, MultiTaskDataLoaders
+from src.types import MultiTaskDataLoaders, MultiTaskProportion, TrainConfig
 
 from ..models.clip import CLIP
 from .engine import Engine

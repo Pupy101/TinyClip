@@ -1,4 +1,4 @@
-from .data import Augmentations, DataLoaders, MultiTaskDataLoaders, DataConfig
+from .data import Augmentations, DataConfig, DataLoaders, MultiTaskDataLoaders
 from .model import (
     CLIPInferenceOutput,
     CLIPTrainOutput,

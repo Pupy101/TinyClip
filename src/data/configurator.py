@@ -5,8 +5,9 @@ import pandas as pd
 from torch.utils.data import DataLoader
 from youtokentome import BPE
 
-from .dataset import CLIPDataset, ImageDataset, MaskedLMDataset
 from src.types import DataConfig, DataLoaders, MultiTaskDataLoaders
+
+from .dataset import CLIPDataset, ImageDataset, MaskedLMDataset
 
 
 class ConfiguratorData:

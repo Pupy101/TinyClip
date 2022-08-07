@@ -54,6 +54,7 @@ def compute_accuracy_5(logits: Tensor, target: Tensor) -> int:
 def generator_chunks(
     items: Iterable[Item], chunk_size: int = 10
 ) -> Generator[List[Item], None, None]:
+    """Function for create chunks from iterable."""
     chunk = []
     for item in items:
         chunk.append(item)
@@ -65,17 +66,20 @@ def generator_chunks(
 
 
 def download_file(item: DownloadFile) -> None:
+    """Function for download file with library requests."""
     response = requests.get(item.url)
     with open(item.file_path, "wb") as file:
         file.write(response.content)
 
 
-def download(items: List[DownloadFile], max_workers: int = 20) -> None:
+def download_threads(items: List[DownloadFile], max_workers: int = 20) -> None:
+    """Download files in many threads."""
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         executor.map(download_file, items)
 
 
 def download_files_mp(files: List[DownloadFile], n_pools: int = 4) -> None:
+    """Download files in multiple process and many threads."""
     chunks = list(generator_chunks(files))
     with Pool(n_pools) as pool:
-        pool.map(download, chunks)
+        pool.map(download_threads, chunks)
