@@ -1,3 +1,3 @@
 from .augmentations import augmentations
-from .dataset import CLIPDataset, ImageDataset, MaskedLMDataset
+from .configurator import ConfiguratorData
 from .transform import transform_xlnet

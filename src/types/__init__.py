@@ -1,5 +1,4 @@
-from .config import DataConfig, TrainConfig
-from .data import Augmentations, DataLoaders, MultiTaskDataLoaders
+from .data import Augmentations, DataLoaders, MultiTaskDataLoaders, DataConfig
 from .model import (
     CLIPInferenceOutput,
     CLIPTrainOutput,
@@ -8,4 +7,5 @@ from .model import (
     Logits,
     XLNetConfig,
 )
-from .train import MultiTaskProportion, TrainingParameters
+from .train import MultiTaskProportion, TrainConfig
+from .utils import DownloadFile, Item

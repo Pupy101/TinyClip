@@ -11,6 +11,8 @@ from .metrics import CLIPMetrics, ImageClassificationMetrics, MaskedLMMetric
 
 
 class Engine:
+    """Engine for training CLIP."""
+
     def __init__(
         self,
         seed: int,
@@ -57,26 +59,25 @@ class Engine:
         self.text_metrics = MaskedLMMetric()
         self.clip.train()
         self.optimizer.zero_grad()
-        self.counter_clip_steps = 0
-        self.counter_image_steps = 0
-        self.counter_text_steps = 0
+        self._reset_batch_accumulation()
 
     def eval(self) -> None:
         self.clip_metrics = CLIPMetrics()
         self.image_metrics = ImageClassificationMetrics()
         self.text_metrics = MaskedLMMetric()
         self.clip.eval()
-        self.counter_clip_steps = 0
-        self.counter_image_steps = 0
-        self.counter_text_steps = 0
+        self._reset_batch_accumulation()
 
-    def reset(self) -> None:
+    def _reset_batch_accumulation(self) -> None:
         self.clip_image_outputs = []
         self.clip_text_outputs = []
         self.image_outputs = []
         self.image_labels = []
         self.text_outputs = []
         self.text_labels = []
+        self.counter_clip_steps = 0
+        self.counter_image_steps = 0
+        self.counter_text_steps = 0
 
     def batch_on_device(self, batch: Tuple[Tensor, ...]) -> Tuple[Tensor, ...]:
         return tuple(batch_element.to(self.device) for batch_element in batch)
@@ -107,7 +108,7 @@ class Engine:
         self.clip_metrics.update(
             tp=tp, fp=fp, fn=fn, loss=loss.item(), count=image.size(0)
         )
-        self.reset()
+        self._reset_batch_accumulation()
         return loss
 
     def image_part_forward(self, batch: Tuple[Tensor, Tensor]) -> Optional[Tensor]:
@@ -129,7 +130,7 @@ class Engine:
         top5 = compute_accuracy_5(image_logits, image_labels)
         count = image_logits.size(0)
         self.image_metrics.update(top1=top1, top5=top5, loss=loss.item(), count=count)
-        self.reset()
+        self._reset_batch_accumulation()
         return loss
 
     def text_part_forward(
@@ -155,7 +156,7 @@ class Engine:
         top5 = compute_accuracy_5(text_logits.permute(0, 2, 1), text_labels)
         count = text_logits.size(0)
         self.text_metrics.update(top1=top1, top5=top5, loss=loss.item(), count=count)
-        self.reset()
+        self._reset_batch_accumulation()
         return loss
 
     def optimization_step(self):

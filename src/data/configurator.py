@@ -5,31 +5,15 @@ import pandas as pd
 from torch.utils.data import DataLoader
 from youtokentome import BPE
 
-from src.data import CLIPDataset, ImageDataset, MaskedLMDataset
-from src.models import CLIP, TextPartCLIP, VisionPartCLIP
-from src.types import (
-    DataConfig,
-    DataLoaders,
-    MultiTaskDataLoaders,
-    TrainConfig,
-    TrainingParameters,
-)
-
-from .engine import Engine
+from .dataset import CLIPDataset, ImageDataset, MaskedLMDataset
+from src.types import DataConfig, DataLoaders, MultiTaskDataLoaders
 
 
-class Configurator:
-    def __init__(
-        self,
-        vision_part: VisionPartCLIP,
-        text_part: TextPartCLIP,
-        data_config: DataConfig,
-        train_config: TrainConfig,
-    ) -> None:
+class ConfiguratorData:
+    """Configurator dataloaders for training."""
+
+    def __init__(self, data_config: DataConfig) -> None:
         self.data_config = data_config
-        self.train_config = train_config
-        self.vision_part = vision_part
-        self.text_part = text_part
 
     @staticmethod
     def open_csv(csv_path: Union[str, Path]) -> pd.DataFrame:
@@ -173,42 +157,5 @@ class Configurator:
             clip=clip_dataloaders, image=image_dataloaders, text=text_dataloaders
         )
 
-    def configurate_engine(self) -> Engine:
-        clip = CLIP(
-            vision_part=self.vision_part,
-            text_part=self.text_part,
-        )
-        optimizer = self.train_config.optimizer(
-            clip.parameters(), **self.train_config.optimizer_params
-        )
-        if self.train_config.scheduler is not None:
-            scheduler = self.train_config.scheduler(
-                optimizer, **self.train_config.scheduler_params
-            )
-        else:
-            scheduler = None
-        return Engine(
-            seed=self.train_config.seed,
-            clip=clip,
-            criterion_clip=self.train_config.criterion_clip,
-            criterion_image=self.train_config.criterion_image,
-            criterion_text=self.train_config.criterion_text,
-            optimizer=optimizer,
-            device=self.train_config.device,
-            scheduler=scheduler,
-            count_accumulated_batches=self.train_config.accumulation_steps,
-        )
-
-    def configurate(self) -> TrainingParameters:
-        loaders = self.configurate_dataloaders()
-        engine = self.configurate_engine()
-        save_dir = Path(self.train_config.save_dir)
-        if not save_dir.exists():
-            save_dir.mkdir(parents=True)
-        return TrainingParameters(
-            n_epochs=self.train_config.n_epochs,
-            engine=engine,
-            dataloaders=loaders,
-            save_dir=save_dir,
-            coefficients=self.train_config.coefficients,
-        )
+    def configurate(self) -> MultiTaskDataLoaders:
+        return self.configurate_dataloaders()

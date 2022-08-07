@@ -49,13 +49,15 @@ class TextPartCLIP(BaseModel):
         model: nn.Module,
         output_model_shape: int,
         count_tokens: int,
-        output_shape: int,
+        output_clip_shape: int,
     ) -> None:
         """Init text part of CLIP. 'model' is GPT2 model or another autoregressive model."""
         super().__init__()
         self.model = model
         self.lm = nn.Linear(in_features=output_model_shape, out_features=count_tokens)
-        self.head = nn.Linear(in_features=output_model_shape, out_features=output_shape)
+        self.head = nn.Linear(
+            in_features=output_model_shape, out_features=output_clip_shape
+        )
 
     def forward(
         self,

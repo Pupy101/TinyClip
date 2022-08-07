@@ -1,6 +1,7 @@
 from torch import nn, optim
 
 from src.data import augmentations, transform_xlnet
+from src.models import CLIP, ConvNeXt, TextPartCLIP, VisionPartCLIP, XLNet
 from src.types import (
     ConvNeXtConfig,
     DataConfig,
@@ -10,26 +11,7 @@ from src.types import (
 )
 from src.utils.losses import FocalLoss
 
-image_model_config = ConvNeXtConfig(
-    in_channels=3,
-    out_channels=256,
-    depths=[3, 3, 9, 3],
-    dims=[96, 192, 384, 768],
-    drop_path_rate=0.5,
-)
-text_model_config = XLNetConfig(
-    num_layers=4,
-    vocab_size=8_000,
-    model_dim=256,
-    num_heads=4,
-    feedforward_dim=1024,
-    dropout=0.5,
-    activation="gelu",
-    pad_idx=0,
-)
-
-clip_shape = 256
-
+# data config
 data_config = DataConfig(
     train_clip_csv="/content/train_clip.csv",
     valid_clip_csv="/content/valid_clip.csv",
@@ -60,15 +42,73 @@ data_config = DataConfig(
     mask_text_transform=transform_xlnet,
 )
 
+# Model parameters
+clip_inner_shape = 256
+
+# Vision part
+count_classes = 1000  # count classes for classical ImageNet1k
+vision_model_config = ConvNeXtConfig(
+    in_channels=3,
+    out_channels=clip_inner_shape,
+    depths=[3, 3, 9, 3],
+    dims=[96, 192, 384, 768],
+    drop_path_rate=0.5,
+)
+vision_model = ConvNeXt(config=vision_model_config)
+vision_part = VisionPartCLIP(
+    model=vision_model, output_model_shape=clip_inner_shape, count_classes=count_classes
+)
+
+# Text part
+text_model_config = XLNetConfig(
+    num_layers=4,
+    vocab_size=8_000,
+    model_dim=256,
+    num_heads=4,
+    feedforward_dim=1024,
+    dropout=0.5,
+    activation="gelu",
+    pad_idx=0,
+)
+text_model = XLNet(config=text_model_config)
+text_part = TextPartCLIP(
+    model=text_model,
+    output_model_shape=text_model_config.model_dim,
+    count_tokens=text_model_config.vocab_size,
+    output_clip_shape=clip_inner_shape,
+)
+
+# CLIP
+clip_model = CLIP(vision_part=vision_part, text_part=text_part)
+
+# Optimizer
+optimizer = optim.AdamW(clip_model.parameters(), lr=1e-2)
+
+# scheduler
+scheduler = None
+
+# criterions
+clip_criterion = FocalLoss()
+criterion_image = nn.CrossEntropyLoss()
+criterion_text = nn.CrossEntropyLoss(ignore_index=data_config.pad_token_ids)
+
+# Coefficients for multitask learning
+coefficients = MultiTaskProportion(clip=1, image=0.5, text=0.5)
+
+# train config
 train_config = TrainConfig(
+    train_clip=True,
+    train_image=False,
+    train_text=False,
     n_epochs=5,
-    optimizer=optim.AdamW,
-    criterion_clip=FocalLoss(),
-    criterion_image=nn.CrossEntropyLoss(),
-    criterion_text=nn.CrossEntropyLoss(ignore_index=data_config.pad_token_ids),
+    optimizer=optimizer,
+    scheduler=scheduler,
+    criterion_clip=clip_criterion,
+    criterion_image=criterion_image,
+    criterion_text=criterion_text,
     device="cuda",
     save_dir="./checkpoints",
-    coefficients=MultiTaskProportion(clip=10, image=0.1, text=0.1),
-    accumulation_steps=10,
+    coefficients=coefficients,
+    count_accumulated_batches=10,
     seed=1234,
 )

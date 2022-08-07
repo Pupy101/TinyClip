@@ -2,17 +2,20 @@
 Module with custom functions
 """
 
-from typing import Iterator, Optional, Tuple, TypeVar
+from concurrent.futures import ThreadPoolExecutor
+from multiprocessing import Pool
+from typing import Generator, Iterable, List, Tuple
 
+import requests
 import torch
 from torch import Tensor, nn
 
-Batch = TypeVar("Batch")
+from src.types import DownloadFile, Item
 
 
-def normalize(tensor: torch.Tensor) -> torch.Tensor:
+def normalize(tensor: torch.Tensor, dim: int = 1) -> torch.Tensor:
     """Function for normalize tensor along 1 dimension."""
-    norm = torch.sqrt(torch.sum(tensor**2, dim=1)).unsqueeze(1)
+    norm = torch.sqrt(torch.sum(tensor**2, dim=dim)).unsqueeze(1)
     return tensor / norm
 
 
@@ -48,9 +51,31 @@ def compute_accuracy_5(logits: Tensor, target: Tensor) -> int:
     return round(torch.sum(output_labels == target).cpu().item())
 
 
-def get_batch(loader: Iterator[Batch]) -> Optional[Batch]:
-    try:
-        batch = next(loader)
-        return batch
-    except StopIteration:
-        return None
+def generator_chunks(
+    items: Iterable[Item], chunk_size: int = 10
+) -> Generator[List[Item], None, None]:
+    chunk = []
+    for item in items:
+        chunk.append(item)
+        if len(chunk) == chunk_size:
+            yield chunk
+            chunk = []
+    if chunk:
+        yield chunk
+
+
+def download_file(item: DownloadFile) -> None:
+    response = requests.get(item.url)
+    with open(item.file_path, "wb") as file:
+        file.write(response.content)
+
+
+def download(items: List[DownloadFile], max_workers: int = 20) -> None:
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        executor.map(download_file, items)
+
+
+def download_files_mp(files: List[DownloadFile], n_pools: int = 4) -> None:
+    chunks = list(generator_chunks(files))
+    with Pool(n_pools) as pool:
+        pool.map(download, chunks)
