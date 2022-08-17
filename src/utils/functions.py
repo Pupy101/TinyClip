@@ -3,6 +3,7 @@ Module with custom functions
 """
 
 from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from multiprocessing import Pool
 from typing import Generator, Iterable, List, Tuple
 
@@ -68,18 +69,25 @@ def generator_chunks(
 def download_file(item: DownloadFile) -> None:
     """Function for download file with library requests."""
     response = requests.get(item.url)
-    with open(item.file_path, "wb") as file:
-        file.write(response.content)
+    if response.status_code == 200:
+        with open(item.file_path, "wb") as file:
+            file.write(response.content)
 
 
-def download_threads(items: List[DownloadFile], max_workers: int = 20) -> None:
+def download_threads(items: Iterable[DownloadFile], max_workers: int) -> None:
     """Download files in many threads."""
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         executor.map(download_file, items)
 
 
-def download_files_mp(files: List[DownloadFile], n_pools: int = 4) -> None:
+def download_files_multiprocessing(
+    files: Iterable[DownloadFile],
+    n_pools: int = 4,
+    max_workers: int = 20,
+    chunk_size: int = 50,
+) -> None:
     """Download files in multiple process and many threads."""
-    chunks = list(generator_chunks(files))
+    chunks = list(generator_chunks(files, chunk_size=chunk_size))
+    downloader = partial(download_threads, max_workers=max_workers)
     with Pool(n_pools) as pool:
-        pool.map(download_threads, chunks)
+        pool.map(downloader, chunks)
