@@ -9,4 +9,3 @@ Item = TypeVar("Item")
 class DownloadFile:
     url: str
     file_path: Union[str, Path]
-    size: Tuple[int, int] = (224, 224)
