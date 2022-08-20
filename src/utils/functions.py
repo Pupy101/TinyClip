@@ -2,6 +2,7 @@
 Module with custom functions
 """
 
+import io
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from multiprocessing import Pool
@@ -72,7 +73,7 @@ def download_file_and_resize(item: DownloadFile) -> None:
     """Function for download file with library requests and resize image."""
     response = requests.get(item.url)
     if response.status_code == 200:
-        image = Image.open(response.content)
+        image = Image.open(io.BytesIO(response.content))
         image.resize(size=item.size, resample=Image.BILINEAR)
         image.save(item.file_path)
 
