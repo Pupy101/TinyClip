@@ -77,5 +77,5 @@ def test_clip(convnext_config, xlnet_config, clip_shape, count_classes):
         output = clip.vision_part.forward(image, is_classification=True)
     assert tuple(output.shape) == (4, count_classes)
     with torch.no_grad():
-        output = clip.text_part.forward(text, is_mlm=True)
+        output = clip.text_part.forward(text, is_masked_lm=True)
     assert tuple(output.shape) == (4, xlnet_config.vocab_size, text.size(1))

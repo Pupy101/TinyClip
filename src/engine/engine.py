@@ -140,7 +140,7 @@ class Engine:
 
         masked_ids, perm_mask, label_ids = self.batch_on_device(batch)
         logits = self.clip.text_part.forward(
-            text=masked_ids, perm_mask=perm_mask, is_mlm=True
+            text=masked_ids, perm_mask=perm_mask, is_masked_lm=True
         )
         self.text_outputs.append(logits)
         self.text_labels.append(label_ids)

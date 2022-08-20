@@ -64,11 +64,11 @@ class TextPartCLIP(BaseModel):
         text: Tensor,
         perm_mask: Optional[Tensor] = None,
         target_mapping: Optional[Tensor] = None,
-        is_mlm: bool = False,
+        is_masked_lm: bool = False,
     ) -> Tensor:
         """Forward method of text part of CLIP."""
         output = self.model(text, perm_mask=perm_mask, target_mapping=target_mapping)
-        if is_mlm:
+        if is_masked_lm:
             output = self.lm(output).permute(0, 2, 1)
         else:
             output = self.head(output[:, self.CLS_IND, :])

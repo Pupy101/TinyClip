@@ -5,10 +5,12 @@ Module with custom functions
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from multiprocessing import Pool
-from typing import Generator, Iterable, List, Tuple
+from pathlib import Path
+from typing import Generator, Iterable, List, Tuple, Union
 
 import requests
 import torch
+from PIL import Image
 from torch import Tensor, nn
 
 from src.types import DownloadFile, Item
@@ -66,18 +68,19 @@ def generator_chunks(
         yield chunk
 
 
-def download_file(item: DownloadFile) -> None:
-    """Function for download file with library requests."""
+def download_file_and_resize(item: DownloadFile) -> None:
+    """Function for download file with library requests and resize image."""
     response = requests.get(item.url)
     if response.status_code == 200:
-        with open(item.file_path, "wb") as file:
-            file.write(response.content)
+        image = Image.open(response.content)
+        image.resize(size=item.size, resample=Image.BILINEAR)
+        image.save(item.file_path)
 
 
 def download_threads(items: Iterable[DownloadFile], max_workers: int) -> None:
     """Download files in many threads."""
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        executor.map(download_file, items)
+        executor.map(download_file_and_resize, items)
 
 
 def download_files_multiprocessing(
@@ -87,7 +90,6 @@ def download_files_multiprocessing(
     chunk_size: int = 50,
 ) -> None:
     """Download files in multiple process and many threads."""
-    chunks = list(generator_chunks(files, chunk_size=chunk_size))
     downloader = partial(download_threads, max_workers=max_workers)
     with Pool(n_pools) as pool:
-        pool.map(downloader, chunks)
+        pool.map(downloader, generator_chunks(files, chunk_size=chunk_size))
