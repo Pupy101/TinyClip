@@ -1,0 +1,13 @@
+albumentations
+black
+git+https://github.com/Pupy101/blocks.git@master#egg=blocks
+isort
+mypy
+opencv-python
+pandas
+pylint
+pytest
+PyYAML
+requests
+torch
+transformers
