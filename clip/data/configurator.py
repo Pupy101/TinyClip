@@ -2,16 +2,19 @@ from typing import Optional
 
 import pandas as pd
 from torch.utils.data import DataLoader
+from utilities.data import train_valid_test_split
 
-from clip.types import BatchSizes, DataLoaders, DatasetType, SplitSizes, Tokenizer
-from clip.utils.functions import split_train_val_test, split_train_val_test_stratify
-
-from .augmentations import create_image_augs, create_text_augs
-from .collate_fn import create_clip_collate_fn, create_masked_lm_collate_fn
-from .dataset import ClassificationDataset, CLIPDataset, MaskedLMDataset
+from clip.data.augmentations import create_image_augs, create_text_augs
+from clip.data.collate_fn import create_clip_collate_fn, create_masked_lm_collate_fn
+from clip.data.dataset import CLIPDataset, ImageDataset, TextDataset
+from clip.types import BatchSizes, DataLoaders, DatasetType, PathLike, SplitSizes, Tokenizer
 
 
 class Configurator:
+    @staticmethod
+    def read_dataframe(file: PathLike) -> pd.DataFrame:
+        return pd.read_table(file)
+
     @staticmethod
     def create_clip_dataset(
         dataframe: pd.DataFrame,
@@ -50,8 +53,8 @@ class Configurator:
         dataset_type: str,
         image_column: str = "image",
         label_column: str = "label",
-    ) -> ClassificationDataset:
-        return ClassificationDataset(
+    ) -> ImageDataset:
+        return ImageDataset(
             dataframe=dataframe,
             image_transform=create_image_augs(dataset_type),
             image_column=image_column,
@@ -60,7 +63,7 @@ class Configurator:
 
     @staticmethod
     def create_image_dataloader(  # pylint: disable=too-many-arguments
-        dataset: ClassificationDataset,
+        dataset: ImageDataset,
         batch_size: int,
         num_workers: int,
         shuffle: bool,
@@ -77,8 +80,8 @@ class Configurator:
         dataframe: pd.DataFrame,
         dataset_type: str,
         text_column: str = "text",
-    ) -> MaskedLMDataset:
-        return MaskedLMDataset(
+    ) -> TextDataset:
+        return TextDataset(
             dataframe=dataframe,
             text_transform=create_text_augs(dataset_type),
             text_column=text_column,
@@ -86,7 +89,7 @@ class Configurator:
 
     @staticmethod
     def create_text_dataloader(  # pylint: disable=too-many-arguments
-        dataset: MaskedLMDataset,
+        dataset: TextDataset,
         batch_size: int,
         num_workers: int,
         tokenizer: Tokenizer,
@@ -112,10 +115,9 @@ class Configurator:
         text_column: str = "text",
         max_length: Optional[int] = None,
     ) -> DataLoaders:
-        train_df, valid_df, test_df = split_train_val_test(
-            dataframe,
-            train_size=split_sizes.train,
-            valid_size=split_sizes.test,
+        df = Configurator.read_dataframe(dataframe)
+        train_df, valid_df, test_df = train_valid_test_split(
+            df, valid_size=split_sizes.valid, test_size=split_sizes.test
         )
         train_loader = Configurator.create_clip_dataloader(
             dataset=Configurator.create_clip_dataset(
@@ -167,10 +169,11 @@ class Configurator:
         image_column: str = "image",
         label_column: str = "label",
     ) -> DataLoaders:
-        train_df, valid_df, test_df = split_train_val_test_stratify(
-            dataframe,
-            train_size=split_sizes.train,
-            valid_size=split_sizes.test,
+        df = Configurator.read_dataframe(dataframe)
+        train_df, valid_df, test_df = train_valid_test_split(
+            df,
+            valid_size=split_sizes.valid,
+            test_size=split_sizes.test,
             stratify_column=label_column,
         )
         train_loader = Configurator.create_image_dataloader(
@@ -210,7 +213,7 @@ class Configurator:
 
     @staticmethod
     def create_text_dataloaders(  # pylint: disable=too-many-arguments
-        dataframe: pd.DataFrame,
+        dataframe: PathLike,
         batch_sizes: BatchSizes,
         split_sizes: SplitSizes,
         num_workers: int,
@@ -218,10 +221,11 @@ class Configurator:
         text_column: str = "text",
         max_length: Optional[int] = None,
     ) -> DataLoaders:
-        train_df, valid_df, test_df = split_train_val_test(
-            dataframe,
-            train_size=split_sizes.train,
-            valid_size=split_sizes.test,
+        df = Configurator.read_dataframe(dataframe)
+        train_df, valid_df, test_df = train_valid_test_split(
+            df,
+            valid_size=split_sizes.valid,
+            test_size=split_sizes.test,
         )
         train_loader = Configurator.create_text_dataloader(
             dataset=Configurator.create_text_dataset(

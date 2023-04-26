@@ -1,4 +1,4 @@
-from typing import Tuple, Union
+from typing import Dict, Tuple, Union
 
 import albumentations as A
 import numpy as np
@@ -8,10 +8,10 @@ from PIL import Image
 from torch import Tensor
 from torch.utils.data import Dataset
 
-from .augmentations import ComposeAugmentator
+from clip.data.augmentations import ComposeAugmentator
 
 
-class ClassificationDataset(Dataset):
+class ImageDataset(Dataset):
     def __init__(
         self,
         dataframe: DataFrame,
@@ -31,19 +31,17 @@ class ClassificationDataset(Dataset):
         image = self.image_transform(image=image)["image"]
         return image  # type: ignore
 
-    def __getitem__(self, item: int) -> Tuple[Tensor, Tensor]:
+    def __getitem__(self, item: int) -> Dict[str, Tensor]:
         img = self.prepare_image(self.df.iloc[item, self.img_col_idx])
         label = self.df.iloc[item, self.label_col_idx]
-        return img, torch.tensor(label, dtype=torch.long)
+        return {"image": img, "label": torch.tensor(label, dtype=torch.long)}
 
     def __len__(self) -> int:
         return self.df.shape[0]
 
 
-class CLIPDataset(ClassificationDataset):
-    """Dataset from dataframe with columns path to image and text description."""
-
-    def __init__(
+class CLIPDataset(ImageDataset):
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         dataframe: DataFrame,
         image_transform: A.Compose,
@@ -65,9 +63,7 @@ class CLIPDataset(ClassificationDataset):
         return img, self.text_transform(text)
 
 
-class MaskedLMDataset(Dataset):
-    """Dataset from dataframe with column containing text."""
-
+class TextDataset(Dataset):
     def __init__(
         self,
         dataframe: DataFrame,

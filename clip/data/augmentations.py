@@ -1,14 +1,13 @@
 import random
+import re
 from typing import List, Set
 
 import albumentations as A
-import nltk
 from albumentations.pytorch import ToTensorV2
 from nltk.tokenize import word_tokenize
 
+from clip.data.utils import get_synonyms
 from clip.types import BaseTextAugmentator, DatasetType
-
-from .utils import get_synonyms
 
 
 def create_image_augs(transform_type: str) -> A.Compose:
@@ -29,29 +28,43 @@ def create_image_augs(transform_type: str) -> A.Compose:
             ]
         )
     elif transform_type in {DatasetType.VALID.value, DatasetType.TEST.value}:
-        augmentations.extend(
-            [
-                A.SmallestMaxSize(max_size=250),
-                A.CenterCrop(height=224, width=224),
-            ]
-        )
+        augmentations.extend([A.SmallestMaxSize(max_size=250), A.CenterCrop(height=224, width=224)])
     else:
-        raise ValueError(
-            f"Strange transform_type for 'create_image_augmentations': {transform_type}"
-        )
+        raise ValueError(f"Strange transform_type for 'create_image_augmentations': {transform_type}")
 
     augmentations.extend([A.Normalize(), ToTensorV2()])
     return A.Compose(augmentations)
 
 
-class ComposeAugmentator:
+def create_text_augs(transform_type: str) -> "ComposeAugmentator":
+    augmentations: List[BaseTextAugmentator] = []
+    if transform_type == DatasetType.TRAIN.value:
+        augmentations.extend(
+            [
+                SynonymReplacementAugmentator(p=0.5, p_replace=0.4),
+                RandomInsertAugmentator(p=0.5, p_insert=0.4),
+                CharSwapAugmentator(p=0.3, p_swap=0.1),
+            ]
+        )
+    elif transform_type in {DatasetType.VALID.value, DatasetType.TEST.value}:
+        augmentations.extend([SynonymReplacementAugmentator(p=0.5, p_replace=0.4)])
+    else:
+        raise ValueError(f"Strange transform_type for 'create_augmentations': {transform_type}")
+    return ComposeAugmentator(augmentations)
+
+
+class ComposeAugmentator(BaseTextAugmentator):
     def __init__(self, augmentators: List[BaseTextAugmentator]) -> None:
+        assert augmentators, "Set one or more augmentators"
         self.augmentators = augmentators
+        super().__init__(p=1.0)
+        self.install_requirements(self.nltk_requirements)
 
+    def add_requirements(self) -> None:
         for augmentator in self.augmentators:
-            augmentator.prepare()
+            self.add_nltk_requirements(*augmentator.nltk_requirements)
 
-    def transform(self, text: str) -> str:
+    def apply(self, text: str) -> str:
         for augmentator in self.augmentators:
             text = augmentator.transform(text=text)
         return text
@@ -66,22 +79,16 @@ class SynonymReplacementAugmentator(BaseTextAugmentator):
         assert 0 <= p_replace <= 1, "probability must be in interval [0, 1]"
         self.p_replace = p_replace
 
-    def prepare(self) -> None:
-        nltk.download("punkt")
-        nltk.download("wordnet")
+    def add_requirements(self) -> None:
+        self.add_nltk_requirements("punkt", "wordnet")
 
     def apply(self, text: str) -> str:
-        new_sentence = []
         for word in word_tokenize(text):
-            if random.random() < self.p_replace:
+            if re.match(r"[\w]{4,}", word) and random.random() < self.p_replace:
                 synonyms = get_synonyms(word)
                 if synonyms:
-                    new_sentence.append(random.choice(synonyms))
-                else:
-                    new_sentence.append(word)
-            else:
-                new_sentence.append(word)
-        return " ".join(new_sentence)
+                    text = re.sub(word, random.choice(synonyms), text)
+        return text
 
 
 class RandomInsertAugmentator(BaseTextAugmentator):
@@ -90,19 +97,16 @@ class RandomInsertAugmentator(BaseTextAugmentator):
         assert 0 <= p_insert <= 1, "probability must be in interval [0, 1]"
         self.p_insert = p_insert
 
-    def prepare(self) -> None:
-        nltk.download("punkt")
-        nltk.download("wordnet")
+    def add_requirements(self) -> None:
+        self.add_nltk_requirements("punkt", "wordnet")
 
     def apply(self, text: str) -> str:
-        new_words = []
         for word in word_tokenize(text):
-            new_words.append(word)
-            if random.random() < self.p_insert:
+            if re.match(r"[\w]{4,}", word) and random.random() < self.p_insert:
                 synonyms = get_synonyms(word)
                 if synonyms:
-                    new_words.append(random.choice(synonyms))
-        return " ".join(new_words)
+                    text = re.sub(f"({word})", "\\1 " + random.choice(synonyms), text)
+        return text
 
 
 class CharSwapAugmentator(BaseTextAugmentator):
@@ -111,64 +115,16 @@ class CharSwapAugmentator(BaseTextAugmentator):
         assert 0 <= p_swap <= 1, "probability must be in interval [0, 1]"
         self.p_swap = p_swap
 
-    def prepare(self) -> None:
-        nltk.download("punkt")
+    def add_requirements(self) -> None:
+        self.add_nltk_requirements("punkt")
 
     def apply(self, text: str) -> str:
-        swapped_words: List[str] = []
+        changed_words: Set[str] = set()
         for word in word_tokenize(text):
-            if len(word) > 1 and random.random() < self.p_swap:
+            if word not in changed_words and re.match(r"[\w]{4,}", word) and random.random() < self.p_swap:
                 chars = list(word)
                 random.shuffle(chars)
-                word = "".join(chars)
-            swapped_words.append(word)
-
-        return " ".join(swapped_words)
-
-
-class WordsReorderingAugmentator(BaseTextAugmentator):
-    def __init__(self, p: float, p_reordering: float) -> None:
-        super().__init__(p=p)
-        assert 0 <= p_reordering <= 1, "probability must be in interval [0, 1]"
-        self.p_reordering = p_reordering
-
-    def prepare(self) -> None:
-        nltk.download("punkt")
-
-    def apply(self, text: str) -> str:
-        reordering_indexes: Set[int] = set()
-        reordering_words: List[str] = []
-        for i, word in enumerate(word_tokenize(text)):
-            if random.random() < self.p_reordering:
-                reordering_indexes.add(i)
-                reordering_words.append(word)
-        random.shuffle(reordering_words)
-        new_words: List[str] = []
-        for i, word in enumerate(word_tokenize(text)):
-            if i in reordering_indexes:
-                new_words.append(reordering_words.pop())
-            else:
-                new_words.append(word)
-        return " ".join(new_words)
-
-
-def create_text_augs(transform_type: str) -> ComposeAugmentator:
-    augmentations: List[BaseTextAugmentator] = []
-    if transform_type == DatasetType.TRAIN.value:
-        augmentations.extend(
-            [
-                SynonymReplacementAugmentator(p=0.5, p_replace=0.4),
-                RandomInsertAugmentator(p=0.5, p_insert=0.3),
-                CharSwapAugmentator(p=0.5, p_swap=0.2),
-                WordsReorderingAugmentator(p=0.5, p_reordering=0.3),
-            ]
-        )
-    elif transform_type in {DatasetType.VALID.value, DatasetType.TEST.value}:
-        augmentations.extend(
-            [
-                SynonymReplacementAugmentator(p=0.5, p_replace=0.4),
-            ]
-        )
-    else:
-        raise ValueError(f"Strange transform_type for 'create_augmentations': {transform_type}")
-    return ComposeAugmentator(augmentations)
+                new_word = "".join(chars)
+                text = re.sub(word, new_word, text)
+            changed_words.add(word)
+        return text
