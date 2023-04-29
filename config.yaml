@@ -1,0 +1,59 @@
+data:
+  tokenizer: cointegrated/LaBSE-en-ru
+  max_length: 120
+  image:
+    dataframe: /Users/19891176/Desktop/MyProjects/CLIP/.exp/data.csv
+    batch_sizes:
+      train: 2
+      valid: 2
+      test: 2
+    split_sizes:
+      train: 0.6
+      valid: 0.2
+      test: 0.2
+    num_workers: 0
+    image_column: image_path
+    label_column: label
+  text:
+    dataframe: /Users/19891176/Desktop/MyProjects/CLIP/.exp/data.csv
+    batch_sizes:
+      train: 2
+      valid: 2
+      test: 2
+    split_sizes:
+      train: 0.6
+      valid: 0.2
+      test: 0.2
+    num_workers: 0
+    text_column: ai_description
+  clip:
+    dataframe: /Users/19891176/Desktop/MyProjects/CLIP/.exp/data.csv
+    batch_sizes:
+      train: 2
+      valid: 2
+      test: 2
+    split_sizes:
+      train: 0.6
+      valid: 0.2
+      test: 0.2
+    num_workers: 0
+    image_column: image_path
+    text_column: ai_description
+model:
+  image:
+    model_type: convnext
+    drop_path_rate: 0.3
+    depths: [3, 3, 3, 3]
+    hidden_sizes: [16, 32, 64, 128]
+    count_classes: 1000
+  text:
+    model_type: distilbert
+    vocab_size: 55083
+    hidden_size: 128
+    num_hidden_layers: 2
+    num_attention_heads: 2
+    intermediate_size: 512
+    hidden_dropout_prob: 0.3
+    attention_probs_dropout_prob: 0.3
+    max_position_embeddings: 240
+    position_embedding_type: relative_key_query

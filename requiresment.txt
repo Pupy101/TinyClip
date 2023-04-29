@@ -1,8 +1,11 @@
 albumentations
 black
-git+https://github.com/Pupy101/blocks.git@master#egg=blocks
+dacite
+git+https://github.com/Pupy101/utilities.git@master
+hydra-core
 isort
 mypy
+omegaconf
 opencv-python
 pandas
 pylint

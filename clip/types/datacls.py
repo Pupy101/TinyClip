@@ -1,54 +1,28 @@
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Any, Dict
 
-from torch import Tensor, nn, optim
+from torch import nn
 from torch.utils.data import DataLoader
 
-from .typings import Device, PathLike, Scheduler
+from .base import BaseOutput
+
+#################################### COMMON ####################################
 
 
 @dataclass
-class DownloadFile:
-    url: str
-    dir: PathLike
+class Embeddings(BaseOutput):
+    ...
 
 
 @dataclass
-class Embeddings:
-    image: Tensor
-    text: Tensor
+class Logits(BaseOutput):
+    ...
 
 
 @dataclass
-class Logits:
-    image: Tensor
-    text: Tensor
-
-
-@dataclass
-class CLIPTrainOutput:
+class CLIPOutput:
     embeddings: Embeddings
     logits: Logits
-
-
-@dataclass
-class CLIPInferenceOutput:
-    classes: Tensor
-    embeddings: Embeddings
-
-
-@dataclass
-class ConvNeXtConfig:
-    in_channels: int
-    out_channels: int
-    drop_path_rate: float
-    depths: List[int]
-    dims: List[int]
-    use_dw_conv: bool = False
-
-    def __post_init__(self) -> None:
-        assert len(self.depths) > 1, "Count dims must be more 1"
-        assert len(self.depths) == len(self.dims), "Count depths must equal dims"
 
 
 @dataclass
@@ -56,13 +30,6 @@ class DataLoaders:
     train: DataLoader
     valid: DataLoader
     test: DataLoader
-
-
-@dataclass
-class DatasetsPaths:
-    train: PathLike
-    valid: PathLike
-    test: PathLike
 
 
 @dataclass
@@ -108,32 +75,64 @@ class MultiTaskDataLoaders:
     text: DataLoaders
 
 
-@dataclass
-class TrainConfig:  # pylint: disable=too-many-instance-attributes
-    n_epochs: int
-    optimizer: optim.Optimizer
-    criterion: MultiTaskCriterions
-    coefficients: MultiTaskProportions
-    device: Device
-    save_dir: PathLike
-    count_accumukating_steps: int
-    scheduler: Optional[Scheduler] = None
-    seed: int = 0xFEED
+################################### CONFIGS ####################################
 
-    def __post_init__(self) -> None:
-        assert self.count_accumulated_batches >= 1, "Set 1 or more count_accumulated_batches"
-        assert self.n_epochs >= 1, "Set 1 or more count training epochs"
+
+@dataclass
+class ImageDataConfig:
+    dataframe: str
+    batch_sizes: BatchSizes
+    split_sizes: SplitSizes
+    num_workers: int
+    image_column: str
+    label_column: str
+
+
+@dataclass
+class TextDataConfig:
+    dataframe: str
+    batch_sizes: BatchSizes
+    split_sizes: SplitSizes
+    num_workers: int
+    text_column: str
+
+
+@dataclass
+class CLIPDataConfig:
+    dataframe: str
+    batch_sizes: BatchSizes
+    split_sizes: SplitSizes
+    num_workers: int
+    image_column: str
+    text_column: str
+
+
+@dataclass
+class DataConfig:
+    tokenizer: str
+    max_length: int
+    image: ImageDataConfig
+    text: TextDataConfig
+    clip: CLIPDataConfig
+
+
+@dataclass
+class ModelConfig:
+    image: Dict[str, Any]
+    text: Dict[str, Any]
+
+
+@dataclass
+class TrainConfig:
+    data: DataConfig
+    model: ModelConfig
 
 
 __all__ = [
-    "DownloadFile",
     "Embeddings",
     "Logits",
-    "CLIPTrainOutput",
-    "CLIPInferenceOutput",
-    "ConvNeXtConfig",
+    "CLIPOutput",
     "DataLoaders",
-    "DatasetsPaths",
     "BatchSizes",
     "SplitSizes",
     "MultiTaskProportions",

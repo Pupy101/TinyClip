@@ -58,7 +58,7 @@ class ComposeAugmentator(BaseTextAugmentator):
         assert augmentators, "Set one or more augmentators"
         self.augmentators = augmentators
         super().__init__(p=1.0)
-        self.install_requirements(self.nltk_requirements)
+        self.install_requirements()
 
     def add_requirements(self) -> None:
         for augmentator in self.augmentators:

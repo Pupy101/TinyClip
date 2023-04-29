@@ -41,7 +41,7 @@ class ImageDataset(Dataset):
 
 
 class CLIPDataset(ImageDataset):
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         dataframe: DataFrame,
         image_transform: A.Compose,

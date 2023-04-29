@@ -6,7 +6,7 @@ from typing import Any, Tuple
 @dataclass
 class BaseMetric:
     loss: float = 0.0
-    count: int = 0
+    count: int = 1
 
     def overall(self) -> Any:
         raise NotImplementedError
@@ -18,7 +18,7 @@ class CLIPMetrics(BaseMetric):
     fp: float = 0.0
     fn: float = 0.0
 
-    def update(  # pylint: disable=too-many-arguments
+    def update(
         self,
         tp: float,
         fp: float,
@@ -50,7 +50,7 @@ class CLIPMetrics(BaseMetric):
 
 
 @dataclass
-class ImageClassificationMetrics(BaseMetric):
+class ClassificationMetrics(BaseMetric):
     right_classificated_top1: int = 0
     right_classificated_top5: int = 0
 
@@ -68,11 +68,7 @@ class ImageClassificationMetrics(BaseMetric):
 
     def __str__(self) -> str:
         acc_top1, acc_top5, loss = self.overall()
-        return (
-            f"\tLoss: {loss:.3f}\n"
-            f"\tAccuracy top 1: {acc_top1:.3f}\n"
-            f"\tAccuracy top 1: {acc_top5:.3f}"
-        )
+        return f"\tLoss: {loss:.3f}\n" f"\tAccuracy top 1: {acc_top1:.3f}\n" f"\tAccuracy top 1: {acc_top5:.3f}"
 
 
 @dataclass

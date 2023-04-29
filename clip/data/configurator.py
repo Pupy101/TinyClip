@@ -31,7 +31,7 @@ class Configurator:
         )
 
     @staticmethod
-    def create_clip_dataloader(  # pylint: disable=too-many-arguments
+    def create_clip_dataloader(
         dataset: CLIPDataset,
         batch_size: int,
         num_workers: int,
@@ -62,7 +62,7 @@ class Configurator:
         )
 
     @staticmethod
-    def create_image_dataloader(  # pylint: disable=too-many-arguments
+    def create_image_dataloader(
         dataset: ImageDataset,
         batch_size: int,
         num_workers: int,
@@ -88,7 +88,7 @@ class Configurator:
         )
 
     @staticmethod
-    def create_text_dataloader(  # pylint: disable=too-many-arguments
+    def create_text_dataloader(
         dataset: TextDataset,
         batch_size: int,
         num_workers: int,
@@ -105,7 +105,7 @@ class Configurator:
         )
 
     @staticmethod
-    def create_clip_dataloaders(  # pylint: disable=too-many-arguments
+    def create_clip_dataloaders(
         dataframe: pd.DataFrame,
         batch_sizes: BatchSizes,
         split_sizes: SplitSizes,
@@ -161,7 +161,7 @@ class Configurator:
         return DataLoaders(train=train_loader, valid=valid_loader, test=test_loader)
 
     @staticmethod
-    def create_image_dataloaders(  # pylint: disable=too-many-arguments
+    def create_image_dataloaders(
         dataframe: pd.DataFrame,
         batch_sizes: BatchSizes,
         split_sizes: SplitSizes,
@@ -212,7 +212,7 @@ class Configurator:
         return DataLoaders(train=train_loader, valid=valid_loader, test=test_loader)
 
     @staticmethod
-    def create_text_dataloaders(  # pylint: disable=too-many-arguments
+    def create_text_dataloaders(
         dataframe: PathLike,
         batch_sizes: BatchSizes,
         split_sizes: SplitSizes,

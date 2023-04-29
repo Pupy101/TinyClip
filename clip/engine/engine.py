@@ -1,99 +1,95 @@
-from typing import Dict, List, Optional, Tuple, TypeVar, overload
+from typing import Dict, List, Optional, Tuple, overload
 
-import numpy as np
 import torch
+from blocks.utils import set_seed
 from torch import Tensor, optim
 from transformers import BatchEncoding
 
+from clip.engine.metrics import ClassificationMetrics, CLIPMetrics, MaskedLMMetric
 from clip.models import CLIP
-from clip.types import Device, MultiTaskCriterions, Scheduler
+from clip.types import Device, MultiTaskCriterions, MultiTaskProportions, Scheduler
 from clip.utils.metrics import compute_accuracy1, compute_accuracy5, compute_f1
 
-from .metrics import CLIPMetrics, ImageClassificationMetrics, MaskedLMMetric
 
-Batch = TypeVar("Batch", Dict[str, Tensor], BatchEncoding)
-
-
-class Engine:  # pylint: disable=too-many-instance-attributes
-    def __init__(  # pylint: disable=too-many-arguments
+class Engine:
+    def __init__(
         self,
         clip: CLIP,
-        criterion: MultiTaskCriterions,
+        criterions: MultiTaskCriterions,
+        coefficients: MultiTaskProportions,
         optimizer: optim.Optimizer,
         device: Device,
         scheduler: Optional[Scheduler] = None,
-        count_accumukating_steps: int = 1,
+        count_accumulating_steps: int = 1,
         seed: int = 0xFEED,
     ) -> None:
         self.clip = clip
-        self.criterion = criterion
+        self.criterions = criterions
+        self.coefficients = coefficients
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.device = device
-        self.acc_count = count_accumukating_steps
+        self.acc_count = count_accumulating_steps
 
         self.clip_metrics = CLIPMetrics()
-        self.image_metrics = ImageClassificationMetrics()
+        self.image_metrics = ClassificationMetrics()
         self.text_metrics = MaskedLMMetric()
 
         self.clip_image_outputs: List[Tensor] = []
         self.clip_text_outputs: List[Tensor] = []
-        self.image_outputs: List[Tensor] = []
-        self.image_labels: List[Tensor] = []
-        self.text_outputs: List[Tensor] = []
-        self.text_labels: List[Tensor] = []
         self.counter_clip_steps = 0
-        self.counter_image_steps = 0
-        self.counter_text_steps = 0
 
         self.clip.to(self.device)
-        np.random.seed(seed)
-        torch.manual_seed(seed)
-        torch.cuda.manual_seed(seed)
+
+        set_seed(seed)
 
     def train(self) -> None:
         self.clip_metrics = CLIPMetrics()
-        self.image_metrics = ImageClassificationMetrics()
+        self.image_metrics = ClassificationMetrics()
         self.text_metrics = MaskedLMMetric()
         self.clip.train()
         self.optimizer.zero_grad()
-        self._reset_batch_accumulation()
+        self.reset_batch_accumulation_clip()
 
     def eval(self) -> None:
         self.clip_metrics = CLIPMetrics()
-        self.image_metrics = ImageClassificationMetrics()
+        self.image_metrics = ClassificationMetrics()
         self.text_metrics = MaskedLMMetric()
         self.clip.eval()
-        self._reset_batch_accumulation()
+        self.reset_batch_accumulation_clip()
 
-    def _reset_batch_accumulation(self) -> None:
+    def reset_batch_accumulation_clip(self) -> None:
         self.clip_image_outputs = []
         self.clip_text_outputs = []
-        self.image_outputs = []
-        self.image_labels = []
-        self.text_outputs = []
-        self.text_labels = []
         self.counter_clip_steps = 0
-        self.counter_image_steps = 0
-        self.counter_text_steps = 0
 
     @overload
     def batch_on_device(self, batch: Tuple[Tensor, Tensor]) -> Tuple[Tensor, Tensor]:
         ...
 
     @overload
-    def batch_on_device(self, batch: Batch) -> Batch:
+    def batch_on_device(self, batch: List[Tensor]) -> List[Tensor]:
+        ...
+
+    @overload
+    def batch_on_device(self, batch: Dict[str, Tensor]) -> Dict[str, Tensor]:
+        ...
+
+    @overload
+    def batch_on_device(self, batch: BatchEncoding) -> BatchEncoding:
         ...
 
     def batch_on_device(self, batch):
         if isinstance(batch, tuple):
             return tuple(batch_element.to(self.device) for batch_element in batch)
+        if isinstance(batch, list):
+            return [batch_element.to(self.device) for batch_element in batch]
         if isinstance(batch, BatchEncoding):
             batch.to(self.device)
             return batch
         if isinstance(batch, dict):
             return {k: v.to(self.device) for k, v in batch.items()}
-        raise ValueError("Strange value for batch_on_device: {batch}")
+        raise ValueError(f"Strange value for batch_on_device: {batch}")
 
     def clip_forward(self, batch: BatchEncoding) -> Optional[Tensor]:
         self.counter_clip_steps += 1
@@ -120,63 +116,38 @@ class Engine:  # pylint: disable=too-many-instance-attributes
 
         labels = torch.diag(torch.ones(logits.image.size(0))).to(self.device)
         loss: Tensor
-        loss = self.criterion.clip(logits.image, labels) + self.criterion.clip(logits.text, labels)
-        self.clip_metrics.update(
-            loss=loss.item(), count=image_embeddings.size(0), **compute_f1(logits.image, labels)
-        )
-        self._reset_batch_accumulation()
-        return loss
+        loss = self.criterions.clip(logits.image, labels) + self.criterions.clip(logits.text, labels)
+        self.clip_metrics.update(loss=loss.item(), count=image_embeddings.size(0), **compute_f1(logits.image, labels))
+        self.reset_batch_accumulation_clip()
+        return loss * self.coefficients.clip
 
-    def image_part_forward(self, batch: Tuple[Tensor, Tensor]) -> Optional[Tensor]:
-        self.counter_image_steps += 1
+    def image_part_forward(self, batch: Dict[str, Tensor]) -> Tensor:
+        batch = self.batch_on_device(batch)  # pylint: disable=unpacking-non-sequence
+        label = batch["label"]
+        logits = self.clip.image_part.forward(image=batch["image"], classification=True)
 
-        image, label = self.batch_on_device(batch)  # pylint: disable=unpacking-non-sequence
-        logits = self.clip.image_part.forward(image=image, classification=True)
-        self.image_outputs.append(logits)
-        self.image_labels.append(label)
-
-        if self.counter_image_steps % self.acc_count:
-            return None
-
-        image_logits = torch.cat(self.image_outputs, dim=0)
-        image_labels = torch.cat(self.image_labels, dim=0)
-
-        loss: Tensor = self.criterion.image(image_logits, image_labels)
+        loss: Tensor = self.criterions.image(logits, label)
         self.image_metrics.update(
-            top1=compute_accuracy1(image_logits, image_labels),
-            top5=compute_accuracy5(image_logits, image_labels),
+            top1=compute_accuracy1(logits, label),
+            top5=compute_accuracy5(logits, label),
             loss=loss.item(),
-            count=image_logits.size(0),
+            count=logits.size(0),
         )
-        self._reset_batch_accumulation()
-        return loss
+        return loss * self.coefficients.image
 
-    def text_part_forward(self, batch: BatchEncoding) -> Optional[Tensor]:
-        self.counter_text_steps += 1
-
+    def text_part_forward(self, batch: BatchEncoding) -> Tensor:
         batch = self.batch_on_device(batch)
         labels = batch.pop("labels")
-        logits = self.clip.text_part.forward(
-            **batch, masked_lm=True  # pylint: disable=not-a-mapping
-        )
-        self.text_outputs.append(logits)
-        self.text_labels.append(labels)
+        logits = self.clip.text_part.forward(**batch, masked_lm=True)  # pylint: disable=not-a-mapping
 
-        if self.counter_text_steps % self.acc_count:
-            return None
-
-        text_logits = torch.cat(self.text_outputs, dim=0)
-        text_labels = torch.cat(self.text_labels, dim=0)
-
-        loss: Tensor = self.criterion.text(text_logits, text_labels)
+        loss: Tensor = self.criterions.text(logits, labels)
         self.text_metrics.update(
-            top1=compute_accuracy1(text_logits.permute(0, 2, 1), text_labels),
-            top5=compute_accuracy5(text_logits.permute(0, 2, 1), text_labels),
+            top1=compute_accuracy1(logits.permute(0, 2, 1), labels),
+            top5=compute_accuracy5(logits.permute(0, 2, 1), labels),
             loss=loss.item(),
-            count=text_logits.size(0),
+            count=logits.size(0),
         )
-        self._reset_batch_accumulation()
-        return loss
+        return loss * self.coefficients.text
 
     def optimization_step(self):
         self.optimizer.step()

@@ -1,4 +1,2 @@
-"""
-Module with training and inference for CLIP
-"""
+from .engine import Engine
 from .train import train

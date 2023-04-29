@@ -1,9 +1,9 @@
 from typing import Tuple
 
-from transformers import BertConfig, BertModel, DistilBertConfig, DistilBertModel
+from transformers import DebertaConfig, DebertaModel, DebertaV2Config, DebertaV2Model
 
 
-def create_bert(
+def create_deberta(
     vocab_size: int,
     hidden_size: int = 256,
     num_hidden_layers: int = 4,
@@ -13,9 +13,9 @@ def create_bert(
     hidden_act: str = "gelu_new",
     hidden_dropout_prob: float = 0.1,
     attention_probs_dropout_prob: float = 0.1,
-    position_embedding_type: str = "relative_key_query",
-) -> Tuple[BertConfig, BertModel]:
-    config = BertConfig(
+    relative_attention: bool = False,
+) -> Tuple[DebertaConfig, DebertaModel]:
+    config = DebertaConfig(
         vocab_size=vocab_size,
         hidden_size=hidden_size,
         num_hidden_layers=num_hidden_layers,
@@ -25,18 +25,18 @@ def create_bert(
         hidden_dropout_prob=hidden_dropout_prob,
         attention_probs_dropout_prob=attention_probs_dropout_prob,
         max_position_embeddings=max_position_embeddings,
-        position_embedding_type=position_embedding_type,
+        relative_attention=relative_attention,
     )
-    model = BertModel(config=config)
+    model = DebertaModel(config=config)
     return config, model
 
 
-def pretrained_bert(pretrained: str) -> Tuple[BertConfig, BertModel]:
-    model = BertModel.from_pretrained(pretrained)
+def pretrained_deberta(pretrained: str) -> Tuple[DebertaConfig, DebertaModel]:
+    model = DebertaModel.from_pretrained(pretrained)
     return model.config, model
 
 
-def create_distil_bert(
+def create_deberta_v2(
     vocab_size: int,
     hidden_size: int = 256,
     num_hidden_layers: int = 4,
@@ -46,9 +46,9 @@ def create_distil_bert(
     hidden_act: str = "gelu_new",
     hidden_dropout_prob: float = 0.1,
     attention_probs_dropout_prob: float = 0.1,
-    position_embedding_type: str = "relative_key_query",
-) -> Tuple[DistilBertConfig, DistilBertModel]:
-    config = DistilBertConfig(
+    relative_attention: bool = False,
+) -> Tuple[DebertaV2Config, DebertaV2Model]:
+    config = DebertaV2Config(
         vocab_size=vocab_size,
         hidden_size=hidden_size,
         num_hidden_layers=num_hidden_layers,
@@ -58,15 +58,15 @@ def create_distil_bert(
         hidden_dropout_prob=hidden_dropout_prob,
         attention_probs_dropout_prob=attention_probs_dropout_prob,
         max_position_embeddings=max_position_embeddings,
-        position_embedding_type=position_embedding_type,
+        relative_attention=relative_attention,
     )
-    model = DistilBertModel(config=config)
+    model = DebertaV2Model(config=config)
     return config, model
 
 
-def pretrained_distil_bert(pretrained: str) -> Tuple[DistilBertConfig, DistilBertModel]:
-    model = DistilBertModel.from_pretrained(pretrained)
+def pretrained_deberta_v2(pretrained: str) -> Tuple[DebertaV2Config, DebertaV2Model]:
+    model = DebertaV2Model.from_pretrained(pretrained)
     return model.config, model
 
 
-__all__ = ["create_bert", "pretrained_bert", "create_distil_bert", "pretrained_distil_bert"]
+__all__ = ["create_deberta", "pretrained_deberta", "create_deberta_v2", "pretrained_deberta_v2"]
