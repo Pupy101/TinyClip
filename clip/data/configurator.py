@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from utilities.data import train_valid_test_split
 
 from clip.data.augmentations import create_image_augs, create_text_augs
-from clip.data.collate_fn import create_clip_collate_fn, create_masked_lm_collate_fn
+from clip.data.collate_fn import create_clip_collate_fn, create_image_collate_fn, create_masked_lm_collate_fn
 from clip.data.dataset import CLIPDataset, ImageDataset, TextDataset
 from clip.types import BatchSizes, DataLoaders, DatasetType, PathLike, SplitSizes, Tokenizer
 
@@ -52,13 +52,13 @@ class Configurator:
         dataframe: pd.DataFrame,
         dataset_type: str,
         image_column: str = "image",
-        label_column: str = "label",
+        text_column: str = "label",
     ) -> ImageDataset:
         return ImageDataset(
             dataframe=dataframe,
             image_transform=create_image_augs(dataset_type),
             image_column=image_column,
-            label_column=label_column,
+            text_column=text_column,
         )
 
     @staticmethod
@@ -66,13 +66,16 @@ class Configurator:
         dataset: ImageDataset,
         batch_size: int,
         num_workers: int,
+        tokenizer: Tokenizer,
         shuffle: bool,
+        max_length: Optional[int] = None,
     ) -> DataLoader:
         return DataLoader(
             dataset=dataset,
             batch_size=batch_size,
             shuffle=shuffle,
             num_workers=num_workers,
+            collate_fn=create_image_collate_fn(tokenizer=tokenizer, max_length=max_length),
         )
 
     @staticmethod
@@ -166,48 +169,55 @@ class Configurator:
         batch_sizes: BatchSizes,
         split_sizes: SplitSizes,
         num_workers: int,
+        tokenizer: Tokenizer,
         image_column: str = "image",
-        label_column: str = "label",
+        text_column: str = "text",
+        max_length: Optional[int] = None,
     ) -> DataLoaders:
         df = Configurator.read_dataframe(dataframe)
         train_df, valid_df, test_df = train_valid_test_split(
             df,
             valid_size=split_sizes.valid,
             test_size=split_sizes.test,
-            stratify_column=label_column,
         )
         train_loader = Configurator.create_image_dataloader(
             dataset=Configurator.create_image_dataset(
                 train_df,
                 dataset_type=DatasetType.TRAIN.value,
                 image_column=image_column,
-                label_column=label_column,
+                text_column=text_column,
             ),
             batch_size=batch_sizes.train,
             num_workers=num_workers,
             shuffle=True,
+            tokenizer=tokenizer,
+            max_length=max_length,
         )
         valid_loader = Configurator.create_image_dataloader(
             dataset=Configurator.create_image_dataset(
                 valid_df,
                 dataset_type=DatasetType.VALID.value,
                 image_column=image_column,
-                label_column=label_column,
+                text_column=text_column,
             ),
             batch_size=batch_sizes.valid,
             num_workers=num_workers,
             shuffle=False,
+            tokenizer=tokenizer,
+            max_length=max_length,
         )
         test_loader = Configurator.create_image_dataloader(
             dataset=Configurator.create_image_dataset(
                 test_df,
                 dataset_type=DatasetType.TEST.value,
                 image_column=image_column,
-                label_column=label_column,
+                text_column=text_column,
             ),
             batch_size=batch_sizes.test,
             num_workers=num_workers,
             shuffle=False,
+            tokenizer=tokenizer,
+            max_length=max_length,
         )
         return DataLoaders(train=train_loader, valid=valid_loader, test=test_loader)
 

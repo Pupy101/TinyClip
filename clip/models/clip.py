@@ -1,4 +1,4 @@
-from typing import Any, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import torch
@@ -36,11 +36,11 @@ from .swin import create_swin, create_swin_v2, pretrained_swin, pretrained_swin_
 
 
 class ImagePartCLIP(BaseModule):
-    def __init__(self, model_type: str, count_classes: int, pretrained: bool = False, **kwargs: Any) -> None:
+    def __init__(self, model_type: str, count_classes: int, pretrained: bool = False, **model_params: Any) -> None:
         super().__init__()
         check_enum(model_type, ImageModelType)
         self.count_classes = count_classes
-        self.config, self.model = self.init_model(model_type=model_type, pretrained=pretrained, **kwargs)
+        self.config, self.model = self.init_model(model_type=model_type, pretrained=pretrained, **model_params)
         if isinstance(self.config, (ConvNextConfig, ConvNextV2Config)):
             self.out_shape = self.config.hidden_sizes[-1]
         elif isinstance(self.config, (SwinConfig, Swinv2Config)):
@@ -53,38 +53,38 @@ class ImagePartCLIP(BaseModule):
     def init_model(  # pylint: disable=too-many-return-statements
         model_type: str,
         pretrained: bool,
-        **kwargs: Any,
+        **model_params: Any,
     ) -> Tuple[ImageConfig, ImageModel]:
         if pretrained and model_type == ImageModelType.CONVNEXT.value:
-            return pretrained_convnext(**kwargs)
+            return pretrained_convnext(**model_params)
         if not pretrained and model_type == ImageModelType.CONVNEXT.value:
-            return create_convnext(**kwargs)
+            return create_convnext(**model_params)
         if pretrained and model_type == ImageModelType.CONVNEXTV2.value:
-            return pretrained_convnext_v2(**kwargs)
+            return pretrained_convnext_v2(**model_params)
         if not pretrained and model_type == ImageModelType.CONVNEXTV2.value:
-            return create_convnext_v2(**kwargs)
+            return create_convnext_v2(**model_params)
         if pretrained and model_type == ImageModelType.SWIN.value:
-            return pretrained_swin(**kwargs)
+            return pretrained_swin(**model_params)
         if not pretrained and model_type == ImageModelType.SWIN.value:
-            return create_swin(**kwargs)
+            return create_swin(**model_params)
         if pretrained and model_type == ImageModelType.SWINV2.value:
-            return pretrained_swin_v2(**kwargs)
+            return pretrained_swin_v2(**model_params)
         if not pretrained and model_type == ImageModelType.SWINV2.value:
-            return create_swin_v2(**kwargs)
+            return create_swin_v2(**model_params)
         raise ValueError(f"Strange model type: {model_type}")
 
-    def forward(self, image: Tensor, classification: bool = False) -> Tensor:
-        output = self.model.forward(image).pooler_output
+    def forward(self, images: Tensor, classification: bool = False) -> Tensor:
+        output = self.model.forward(images).pooler_output
         if classification:
             output = self.classificator(output)
         return output
 
 
 class TextPartCLIP(BaseModule):
-    def __init__(self, model_type: str, pretrained: bool = False, **kwargs: Any) -> None:
+    def __init__(self, model_type: str, pretrained: bool = False, **model_params: Any) -> None:
         super().__init__()
         check_enum(model_type, TextModelType)
-        self.config, self.model = self.init_model(model_type=model_type, pretrained=pretrained, **kwargs)
+        self.config, self.model = self.init_model(model_type=model_type, pretrained=pretrained, **model_params)
         if isinstance(self.config, (BertConfig, DistilBertConfig, DebertaConfig, DebertaV2Config)):
             self.out_shape = self.config.hidden_size
             self.vocab_size = self.config.vocab_size
@@ -96,24 +96,24 @@ class TextPartCLIP(BaseModule):
     def init_model(  # pylint: disable=too-many-return-statements
         model_type: str,
         pretrained: bool,
-        **kwargs: Any,
+        **model_params: Any,
     ) -> Tuple[TextConfig, TextModel]:
         if pretrained and model_type == TextModelType.BERT.value:
-            return pretrained_bert(**kwargs)
+            return pretrained_bert(**model_params)
         if not pretrained and model_type == TextModelType.BERT.value:
-            return create_bert(**kwargs)
+            return create_bert(**model_params)
         if pretrained and model_type == TextModelType.DISTILBERT.value:
-            return pretrained_distil_bert(**kwargs)
+            return pretrained_distil_bert(**model_params)
         if not pretrained and model_type == TextModelType.DISTILBERT.value:
-            return create_distil_bert(**kwargs)
+            return create_distil_bert(**model_params)
         if pretrained and model_type == TextModelType.DEBERTA.value:
-            return pretrained_deberta(**kwargs)
+            return pretrained_deberta(**model_params)
         if not pretrained and model_type == TextModelType.DEBERTA.value:
-            return create_deberta(**kwargs)
+            return create_deberta(**model_params)
         if pretrained and model_type == TextModelType.DEBERTAV2.value:
-            return pretrained_deberta_v2(**kwargs)
+            return pretrained_deberta_v2(**model_params)
         if not pretrained and model_type == TextModelType.DEBERTAV2.value:
-            return create_deberta_v2(**kwargs)
+            return create_deberta_v2(**model_params)
         raise ValueError(f"Strange model type: {model_type}")
 
     @staticmethod
@@ -130,7 +130,7 @@ class TextPartCLIP(BaseModule):
     ) -> Tensor:
         output = self.model.forward(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
         if masked_lm:
-            return self.lm_head(output).permute(0, 2, 1)
+            return self.lm_head.forward(output).permute(0, 2, 1)
         if attention_mask is not None:
             return self.mean_pooling(embeddings=output, attention_mask=attention_mask)
         return torch.mean(output, dim=1)
@@ -151,24 +151,20 @@ class CLIP(BaseModule):
 
     def forward(
         self,
-        image: Optional[Tensor] = None,
-        text: Optional[Tensor] = None,
+        image_kwargs: Optional[Dict[str, Tensor]] = None,
+        text_kwargs: Optional[Dict[str, Tensor]] = None,
         image_features: Optional[Tensor] = None,
         text_features: Optional[Tensor] = None,
-        text_attention_mask: Optional[Tensor] = None,
     ) -> CLIPOutput:
-        if image is None and image_features is None:
-            raise ValueError("Set image or image_features")
-        if text is None and text_features is None:
+        if image_kwargs is None and image_features is None:
+            raise ValueError("Set image or images_features")
+        if text_kwargs is None and text_features is None:
             raise ValueError("Set text or text_features")
 
-        if image_features is None:
-            image_features = self.image_part(image)
-        if text_features is None:
-            text_features = self.text_part(text, attention_mask=text_attention_mask)
-        embeddings = Embeddings(image=F.normalize(image_features), text=F.normalize(text_features))
+        if image_features is None and image_kwargs is not None:
+            image_features = self.image_part(**image_kwargs)
+        if text_features is None and text_kwargs:
+            text_features = self.text_part(**text_kwargs)
+        embeddings = Embeddings(image=F.normalize(image_features), text=F.normalize(text_features))  # type: ignore
         logits = self.compute_logit(image=embeddings.image, text=embeddings.text)
         return CLIPOutput(embeddings=embeddings, logits=logits)
-
-
-__all__ = ["ImagePartCLIP", "TextPartCLIP", "CLIP"]

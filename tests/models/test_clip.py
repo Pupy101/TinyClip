@@ -6,7 +6,7 @@ import pytest
 import torch
 
 from clip.models import CLIP, ImagePartCLIP, TextPartCLIP
-from clip.types import ImageModelType, TextModelType
+from clip.types import Device, ImageModelType, TextModelType
 
 CONVNEXT_KWARGS = {
     "model_type": ImageModelType.CONVNEXT.value,
@@ -104,19 +104,19 @@ DEBERTAV2_KWARGS = {
         [BERT_KWARGS, DISTILBERT_KWARGS, DEBERTA_KWARGS, DEBERTAV2_KWARGS],
     ),
 )
-def test_clip(image_kwargs: Dict[str, Any], text_kwargs: Dict[str, Any]) -> None:
+def test_clip(image_kwargs: Dict[str, Any], text_kwargs: Dict[str, Any], device: Device) -> None:
     image_model = ImagePartCLIP(**image_kwargs)
     text_model = TextPartCLIP(**text_kwargs)
     raise_assert = image_model.out_shape != text_model.out_shape
     context = pytest.raises(Exception) if raise_assert else nullcontext()
     with context:
-        clip = CLIP(image_model, text_model).to("cpu")
+        clip = CLIP(image_model, text_model).to(device)
     if raise_assert:
         return
-    image = torch.rand(4, 3, 224, 224).to("cpu")
-    text = torch.arange(256, dtype=torch.long).reshape(4, -1).to("cpu")
+    image = torch.rand(4, 3, 224, 224).to(device)
+    text = torch.arange(256, dtype=torch.long).reshape(4, -1).to(device)
     with torch.no_grad():
-        output = clip.forward(image, text)
+        output = clip.forward({"images": image}, {"input_ids": text})
     assert tuple(output.logits.image.shape) == (4, 4)
     assert tuple(output.logits.text.shape) == (4, 4)
     assert tuple(output.embeddings.image.shape) == tuple(output.embeddings.text.shape)

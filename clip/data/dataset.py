@@ -1,8 +1,7 @@
-from typing import Dict, Tuple, Union
+from typing import Tuple, Union
 
 import albumentations as A
 import numpy as np
-import torch
 from pandas import DataFrame
 from PIL import Image
 from torch import Tensor
@@ -17,13 +16,13 @@ class ImageDataset(Dataset):
         dataframe: DataFrame,
         image_transform: A.Compose,
         image_column: str = "image",
-        label_column: str = "label",
+        text_column: str = "text",
     ) -> None:
         assert image_column in list(dataframe.columns), "Write right name for image column"
-        assert label_column in list(dataframe.columns), "Write right name for label column"
+        assert text_column in list(dataframe.columns), "Write right name for label column"
         self.df = dataframe
         self.img_col_idx = list(self.df.columns).index(image_column)
-        self.label_col_idx = list(self.df.columns).index(label_column)
+        self.text_col_idx = list(self.df.columns).index(text_column)
         self.image_transform = image_transform
 
     def prepare_image(self, img: Union[str, bytes]) -> Tensor:
@@ -31,10 +30,10 @@ class ImageDataset(Dataset):
         image = self.image_transform(image=image)["image"]
         return image  # type: ignore
 
-    def __getitem__(self, item: int) -> Dict[str, Tensor]:
+    def __getitem__(self, item: int) -> Tuple[Tensor, str]:
         img = self.prepare_image(self.df.iloc[item, self.img_col_idx])
-        label = self.df.iloc[item, self.label_col_idx]
-        return {"image": img, "label": torch.tensor(label, dtype=torch.long)}
+        text = self.df.iloc[item, self.text_col_idx]
+        return img, text
 
     def __len__(self) -> int:
         return self.df.shape[0]
@@ -53,13 +52,13 @@ class CLIPDataset(ImageDataset):
             dataframe=dataframe,
             image_transform=image_transform,
             image_column=image_column,
-            label_column=text_column,
+            text_column=text_column,
         )
         self.text_transform = text_transform
 
     def __getitem__(self, item: int) -> Tuple[Tensor, str]:  # type: ignore
         img = self.prepare_image(self.df.iloc[item, self.img_col_idx])
-        text: str = self.df.iloc[item, self.label_col_idx]
+        text: str = self.df.iloc[item, self.text_col_idx]
         return img, self.text_transform(text)
 
 

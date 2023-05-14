@@ -28,10 +28,4 @@ class DatasetType(Enum):
     TEST = "test"
 
 
-class RunType(Enum):
-    TRAIN = "train"
-    VALID = "valid"
-    TEST = "test"
-
-
-__all__ = ["check_enum", "ImageModelType", "TextModelType", "DatasetType", "RunType"]
+__all__ = ["check_enum", "ImageModelType", "TextModelType", "DatasetType"]

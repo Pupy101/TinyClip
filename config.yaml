@@ -1,40 +1,40 @@
 data:
-  tokenizer: cointegrated/LaBSE-en-ru
-  max_length: 120
+  tokenizer: /Users/19891176/Desktop/MyProjects/CLIP/.exp/dump/vocab.txt
+  max_length: 240
   image:
     dataframe: /Users/19891176/Desktop/MyProjects/CLIP/.exp/data.csv
     batch_sizes:
-      train: 2
-      valid: 2
-      test: 2
+      train: 16
+      valid: 16
+      test: 16
     split_sizes:
-      train: 0.6
-      valid: 0.2
+      train: 0.4
+      valid: 0.4
       test: 0.2
     num_workers: 0
     image_column: image_path
-    label_column: label
+    text_column: ai_description
   text:
-    dataframe: /Users/19891176/Desktop/MyProjects/CLIP/.exp/data.csv
+    dataframe: /Users/19891176/Desktop/MyProjects/CLIP/.exp/texts.tsv
     batch_sizes:
-      train: 2
-      valid: 2
-      test: 2
+      train: 16
+      valid: 16
+      test: 16
     split_sizes:
-      train: 0.6
-      valid: 0.2
+      train: 0.4
+      valid: 0.4
       test: 0.2
     num_workers: 0
-    text_column: ai_description
+    text_column: text
   clip:
     dataframe: /Users/19891176/Desktop/MyProjects/CLIP/.exp/data.csv
     batch_sizes:
-      train: 2
-      valid: 2
-      test: 2
+      train: 16
+      valid: 16
+      test: 16
     split_sizes:
-      train: 0.6
-      valid: 0.2
+      train: 0.4
+      valid: 0.4
       test: 0.2
     num_workers: 0
     image_column: image_path
@@ -48,7 +48,7 @@ model:
     count_classes: 1000
   text:
     model_type: distilbert
-    vocab_size: 55083
+    vocab_size: 8000
     hidden_size: 128
     num_hidden_layers: 2
     num_attention_heads: 2

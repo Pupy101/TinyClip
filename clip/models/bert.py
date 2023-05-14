@@ -67,6 +67,3 @@ def create_distil_bert(
 def pretrained_distil_bert(pretrained: str) -> Tuple[DistilBertConfig, DistilBertModel]:
     model = DistilBertModel.from_pretrained(pretrained)
     return model.config, model
-
-
-__all__ = ["create_bert", "pretrained_bert", "create_distil_bert", "pretrained_distil_bert"]

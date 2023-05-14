@@ -67,6 +67,3 @@ def create_deberta_v2(
 def pretrained_deberta_v2(pretrained: str) -> Tuple[DebertaV2Config, DebertaV2Model]:
     model = DebertaV2Model.from_pretrained(pretrained)
     return model.config, model
-
-
-__all__ = ["create_deberta", "pretrained_deberta", "create_deberta_v2", "pretrained_deberta_v2"]

@@ -75,6 +75,3 @@ def create_swin_v2(
 def pretrained_swin_v2(pretrained: str) -> Tuple[Swinv2Config, Swinv2Model]:
     model = Swinv2Model.from_pretrained(pretrained)
     return model.config, model
-
-
-__all__ = ["create_swin", "pretrained_swin", "create_swin_v2", "pretrained_swin_v2"]

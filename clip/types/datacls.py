@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Dict
 
-from torch import nn
 from torch.utils.data import DataLoader
 
 from .base import BaseOutput
@@ -49,32 +48,6 @@ class SplitSizes:
         assert self.train + self.valid + self.test == 1, "Sum of train/valid/test is equal 1"
 
 
-@dataclass
-class MultiTaskProportions:
-    clip: float
-    image: float
-    text: float
-
-    def __post_init__(self) -> None:
-        assert self.clip >= 0
-        assert self.image >= 0
-        assert self.text >= 0
-
-
-@dataclass
-class MultiTaskCriterions:
-    clip: nn.Module
-    image: nn.Module
-    text: nn.Module
-
-
-@dataclass
-class MultiTaskDataLoaders:
-    clip: DataLoaders
-    image: DataLoaders
-    text: DataLoaders
-
-
 ################################### CONFIGS ####################################
 
 
@@ -85,7 +58,7 @@ class ImageDataConfig:
     split_sizes: SplitSizes
     num_workers: int
     image_column: str
-    label_column: str
+    text_column: str
 
 
 @dataclass
@@ -135,8 +108,5 @@ __all__ = [
     "DataLoaders",
     "BatchSizes",
     "SplitSizes",
-    "MultiTaskProportions",
-    "MultiTaskCriterions",
-    "MultiTaskDataLoaders",
     "TrainConfig",
 ]
