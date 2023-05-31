@@ -6,6 +6,7 @@ git+https://github.com/Pupy101/utilities.git@master
 hydra-core
 isort
 mypy
+nltk
 omegaconf
 opencv-python
 pandas

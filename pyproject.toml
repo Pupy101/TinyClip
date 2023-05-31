@@ -12,7 +12,7 @@ disable = [
     "too-many-instance-attributes",
     "arguments-differ",
 ]
-good-names = "p,df,i,tp,fp,fn,f1"
+good-names = "p,df,i"
 
 [tool.mypy]
 ignore_missing_imports = true
