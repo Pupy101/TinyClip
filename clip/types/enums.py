@@ -10,7 +10,7 @@ def check_enum(value: Any, enum: Type[Enum]) -> None:
 
 class ImageModelType(Enum):
     CONVNEXT = "convnext"
-    CONVNEXTV2 = "convnext_v2"
+    CONVNEXT_V2 = "convnext_v2"
     SWIN = "swin"
     SWINV2 = "swin_v2"
 
@@ -19,7 +19,7 @@ class TextModelType(Enum):
     BERT = "bert"
     DISTILBERT = "distilbert"
     DEBERTA = "deberta"
-    DEBERTAV2 = "deberta_v2"
+    DEBERTA_V2 = "deberta_v2"
 
 
 class DatasetType(Enum):
@@ -28,4 +28,10 @@ class DatasetType(Enum):
     TEST = "test"
 
 
-__all__ = ["check_enum", "ImageModelType", "TextModelType", "DatasetType"]
+class TrainMode(Enum):
+    TEXT = "text"
+    IMAGE = "image"
+    CLIP = "clip"
+
+
+__all__ = ["check_enum", "ImageModelType", "TextModelType", "DatasetType", "TrainMode"]

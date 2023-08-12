@@ -1,5 +1,5 @@
 from contextlib import nullcontext
-from typing import Optional, TypeVar
+from typing import Iterable, Optional, TypeVar
 
 import torch
 from accelerate import Accelerator
@@ -10,10 +10,17 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import BatchEncoding
 
-from clip.models import CLIP, ImagePartCLIP, TextPartCLIP
+from clip.models import CLIP, ImagePart, TextPart, TextPartMLM
 from clip.types import Scheduler
 
-Model = TypeVar("Model", ImagePartCLIP, TextPartCLIP)
+Model = TypeVar("Model", ImagePart, TextPart, TextPartMLM)
+Item = TypeVar("Item")
+
+
+def get_iterable(it: Iterable[Item], total: int, is_main: bool, leave: Optional[bool] = None) -> Iterable[Item]:
+    if is_main:
+        return tqdm(it, total=total, leave=leave)
+    return it
 
 
 def train_text_model(
@@ -27,7 +34,7 @@ def train_text_model(
     test_loader: DataLoader,
     scheduler: Optional[Scheduler] = None,
 ) -> Model:
-    for i in tqdm(range(1, n_epochs + 1), total=n_epochs):
+    for i in get_iterable(range(1, n_epochs + 1), total=n_epochs, is_main=accelerator.is_main_process):
         train_loss = run_text_model(
             accelerator=accelerator,
             model=model,
@@ -37,11 +44,13 @@ def train_text_model(
             scheduler=scheduler,
         )
         valid_loss = run_text_model(accelerator=accelerator, model=model, loader=valid_loader, criterion=criterion)
-        print(f"Epoch: {i:<3}")
-        print(f"Train loss: {train_loss:.2f}")
-        print(f"Validation loss: {valid_loss:.2f}")
+        if accelerator.is_main_process:
+            print(f"Epoch: {i:<3}")
+            print(f"Train loss: {train_loss:.2f}")
+            print(f"Validation loss: {valid_loss:.2f}")
     test_loss = run_text_model(accelerator=accelerator, model=model, loader=test_loader, criterion=criterion)
-    print(f"Test loss: {test_loss:.2f}")
+    if accelerator.is_main_process:
+        print(f"Test loss: {test_loss:.2f}")
     return model
 
 
@@ -56,12 +65,16 @@ def run_text_model(
     context = nullcontext if optimizer else torch.no_grad
     batch: BatchEncoding
     overall_loss = 0
-    count_items = 0
-    for batch in tqdm(loader, total=len(loader), leave=False):
+    count_items = 1
+    for count_items, batch in get_iterable(
+        enumerate(loader, 1),
+        total=len(loader),
+        is_main=accelerator.is_main_process,
+        leave=False,
+    ):
         if optimizer:
             optimizer.zero_grad()
         targets = batch.pop("labels")
-        count_items += targets.size(0)
         with context():
             outputs = model(**batch, masked_lm=True)
         loss = criterion(outputs, targets)
@@ -79,7 +92,7 @@ def run_text_model(
 def train_image_model(
     accelerator: Accelerator,
     n_epochs: int,
-    image_model: Model,
+    model: Model,
     text_model: Model,
     optimizer: Optimizer,
     criterion: nn.Module,
@@ -88,10 +101,10 @@ def train_image_model(
     test_loader: DataLoader,
     scheduler: Optional[Scheduler] = None,
 ) -> Model:
-    for i in tqdm(range(1, n_epochs + 1), total=n_epochs, leave=False):
+    for i in get_iterable(range(1, n_epochs + 1), total=n_epochs, is_main=accelerator.is_main_process):
         train_loss = run_image_model(
             accelerator=accelerator,
-            image_model=image_model,
+            model=model,
             text_model=text_model,
             loader=train_loader,
             criterion=criterion,
@@ -100,28 +113,30 @@ def train_image_model(
         )
         valid_loss = run_image_model(
             accelerator=accelerator,
-            image_model=image_model,
+            model=model,
             text_model=text_model,
             loader=valid_loader,
             criterion=criterion,
         )
-        print(f"Epoch: {i:<3}")
-        print(f"Train loss: {train_loss:.2f}")
-        print(f"Validation loss: {valid_loss:.2f}")
+        if accelerator.is_main_process:
+            print(f"Epoch: {i:<3}")
+            print(f"Train loss: {train_loss:.2f}")
+            print(f"Validation loss: {valid_loss:.2f}")
     test_loss = run_image_model(
         accelerator=accelerator,
-        image_model=image_model,
+        model=model,
         text_model=text_model,
         loader=test_loader,
         criterion=criterion,
     )
-    print(f"Test loss: {test_loss:.2f}")
+    if accelerator.is_main_process:
+        print(f"Test loss: {test_loss:.2f}")
     return image_model
 
 
 def run_image_model(
     accelerator: Accelerator,
-    image_model: Model,
+    model: Model,
     text_model: Model,
     loader: DataLoader,
     criterion: nn.Module,
@@ -131,14 +146,18 @@ def run_image_model(
     context = nullcontext if optimizer else torch.no_grad
     batch: BatchEncoding
     overall_loss = 0
-    count_items = 0
-    for batch in tqdm(loader, total=len(loader)):
+    count_items = 1
+    for count_items, batch in get_iterable(
+        enumerate(loader, 1),
+        total=len(loader),
+        is_main=accelerator.is_main_process,
+        leave=False,
+    ):
         if optimizer:
             optimizer.zero_grad()
         images = batch.pop("images")
-        count_items += images.size(0)
         with context():
-            outputs = image_model(images)
+            outputs = model(images)
         with torch.no_grad():
             targets = text_model(**batch)
         loss = criterion(outputs, targets)
@@ -164,7 +183,7 @@ def train_clip_model(
     test_loader: DataLoader,
     scheduler: Optional[Scheduler] = None,
 ) -> CLIP:
-    for i in tqdm(range(1, n_epochs + 1), total=n_epochs, leave=False):
+    for i in get_iterable(range(1, n_epochs + 1), total=n_epochs, is_main=accelerator.is_main_process):
         train_loss = run_clip_model(
             accelerator=accelerator,
             clip=clip,
@@ -174,11 +193,13 @@ def train_clip_model(
             scheduler=scheduler,
         )
         valid_loss = run_clip_model(accelerator=accelerator, clip=clip, loader=valid_loader, criterion=criterion)
-        print(f"Epoch: {i:<3}")
-        print(f"Train loss: {train_loss:.2f}")
-        print(f"Validation loss: {valid_loss:.2f}")
+        if accelerator.is_main_process:
+            print(f"Epoch: {i:<3}")
+            print(f"Train loss: {train_loss:.2f}")
+            print(f"Validation loss: {valid_loss:.2f}")
     test_loss = run_clip_model(accelerator=accelerator, clip=clip, loader=test_loader, criterion=criterion)
-    print(f"Test loss: {test_loss:.2f}")
+    if accelerator.is_main_process:
+        print(f"Test loss: {test_loss:.2f}")
     return clip
 
 
@@ -193,15 +214,18 @@ def run_clip_model(
     context = nullcontext if optimizer else torch.no_grad
     batch: BatchEncoding
     overall_loss = 0
-    count_items = 0
-    for batch in tqdm(loader, total=len(loader)):
+    count_items = 1
+    for count_items, batch in get_iterable(
+        enumerate(loader, 1),
+        total=len(loader),
+        is_main=accelerator.is_main_process,
+        leave=False,
+    ):
         if optimizer:
             optimizer.zero_grad()
         images = batch.pop("images")
-        image_kwargs = {"images": images}
-        count_items += images.size(0)
         with context():
-            outputs = clip.forward(image_kwargs=image_kwargs, text_kwargs=batch)
+            outputs = clip.forward(images=images, **batch)
         targets = torch.diag(torch.ones(images.size(0))).to(accelerator.device)
         loss = criterion(outputs.logits.image, targets) + criterion(outputs.logits.text, targets)
         overall_loss += loss.item()

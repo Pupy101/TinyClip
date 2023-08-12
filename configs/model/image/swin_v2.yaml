@@ -1,0 +1,4 @@
+defaults:
+  - swin_params.yaml
+
+model_type: swin_v2

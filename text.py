@@ -32,9 +32,8 @@ def main():
     optimizer = Adafactor(params=model.parameters(), weight_decay=WEIGHT_DECAY)
     accelerator = Accelerator()
     criterion = nn.CrossEntropyLoss()
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-    model, optimizer, train_loader, valid_loader, test_loader, scheduler = accelerator.prepare(
-        model, optimizer, loaders.train, loaders.valid, loaders.test, scheduler
+    model, optimizer, train_loader, valid_loader, test_loader = accelerator.prepare(
+        model, optimizer, loaders.train, loaders.valid, loaders.test
     )
 
     model = train_text_model(
@@ -46,7 +45,6 @@ def main():
         train_loader=train_loader,
         valid_loader=valid_loader,
         test_loader=test_loader,
-        scheduler=scheduler,
     )
 
     model.to("cpu")

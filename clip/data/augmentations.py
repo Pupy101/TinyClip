@@ -7,7 +7,7 @@ from albumentations.pytorch import ToTensorV2
 from nltk.tokenize import word_tokenize
 
 from clip.data.utils import get_synonyms
-from clip.types import BaseTextAugmentator, DatasetType
+from clip.types import BaseComposeTextAugmentator, BaseNLTKTextAugmentator, BaseTextAugmentator, DatasetType
 
 
 def create_image_augs(transform_type: str) -> A.Compose:
@@ -38,49 +38,37 @@ def create_image_augs(transform_type: str) -> A.Compose:
 
 def create_text_augs(transform_type: str) -> "ComposeAugmentator":
     augmentations: List[BaseTextAugmentator] = []
+
     if transform_type == DatasetType.TRAIN.value:
         augmentations.extend(
             [
-                SynonymReplacementAugmentator(p=0.5, p_replace=0.4),
-                RandomInsertAugmentator(p=0.5, p_insert=0.4),
-                CharSwapAugmentator(p=0.3, p_swap=0.1),
+                SynonymReplacementNLTKAugmentator(p=0.5, p_replace=0.4),
+                RandomInsertNLTKAugmentator(p=0.5, p_insert=0.4),
+                CharSwapNLTKAugmentator(p=0.3, p_swap=0.1),
             ]
         )
     elif transform_type in {DatasetType.VALID.value, DatasetType.TEST.value}:
-        augmentations.extend([SynonymReplacementAugmentator(p=0.5, p_replace=0.4)])
+        pass  # doesn't use any transform
     else:
         raise ValueError(f"Strange transform_type for 'create_augmentations': {transform_type}")
+
     return ComposeAugmentator(augmentations)
 
 
-class ComposeAugmentator(BaseTextAugmentator):
-    def __init__(self, augmentators: List[BaseTextAugmentator]) -> None:
-        assert augmentators, "Set one or more augmentators"
-        self.augmentators = augmentators
-        super().__init__(p=1.0)
-        self.install_requirements()
-
-    def add_requirements(self) -> None:
-        for augmentator in self.augmentators:
-            self.add_nltk_requirements(*augmentator.nltk_requirements)
-
-    def apply(self, text: str) -> str:
-        for augmentator in self.augmentators:
-            text = augmentator.transform(text=text)
-        return text
-
+class ComposeAugmentator(BaseComposeTextAugmentator):
     def __call__(self, text: str) -> str:
         return self.transform(text=text)
 
 
-class SynonymReplacementAugmentator(BaseTextAugmentator):
+class SynonymReplacementNLTKAugmentator(BaseNLTKTextAugmentator):
     def __init__(self, p: float, p_replace: float) -> None:
         super().__init__(p=p)
         assert 0 <= p_replace <= 1, "probability must be in interval [0, 1]"
         self.p_replace = p_replace
 
-    def add_requirements(self) -> None:
-        self.add_nltk_requirements("punkt", "wordnet")
+    @property
+    def nltk_requirements(self) -> Set[str]:
+        return {"punkt", "wordnet"}
 
     def apply(self, text: str) -> str:
         for word in word_tokenize(text):
@@ -91,14 +79,15 @@ class SynonymReplacementAugmentator(BaseTextAugmentator):
         return text
 
 
-class RandomInsertAugmentator(BaseTextAugmentator):
+class RandomInsertNLTKAugmentator(BaseNLTKTextAugmentator):
     def __init__(self, p: float, p_insert: float) -> None:
         super().__init__(p=p)
         assert 0 <= p_insert <= 1, "probability must be in interval [0, 1]"
         self.p_insert = p_insert
 
-    def add_requirements(self) -> None:
-        self.add_nltk_requirements("punkt", "wordnet")
+    @property
+    def nltk_requirements(self) -> Set[str]:
+        return {"punkt", "wordnet"}
 
     def apply(self, text: str) -> str:
         for word in word_tokenize(text):
@@ -109,14 +98,15 @@ class RandomInsertAugmentator(BaseTextAugmentator):
         return text
 
 
-class CharSwapAugmentator(BaseTextAugmentator):
+class CharSwapNLTKAugmentator(BaseNLTKTextAugmentator):
     def __init__(self, p: float, p_swap: float) -> None:
         super().__init__(p=p)
         assert 0 <= p_swap <= 1, "probability must be in interval [0, 1]"
         self.p_swap = p_swap
 
-    def add_requirements(self) -> None:
-        self.add_nltk_requirements("punkt")
+    @property
+    def nltk_requirements(self) -> Set[str]:
+        return {"punkt"}
 
     def apply(self, text: str) -> str:
         changed_words: Set[str] = set()

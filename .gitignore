@@ -10,6 +10,7 @@ __pycache__/
 
 /dist/
 /build/
+/outputs/
 *.egg-info/
 .mypy_cache/
 .pytest_cache/

@@ -5,15 +5,15 @@ from transformers import DebertaConfig, DebertaModel, DebertaV2Config, DebertaV2
 
 def create_deberta(
     vocab_size: int,
-    hidden_size: int = 256,
-    num_hidden_layers: int = 4,
-    num_attention_heads: int = 4,
-    intermediate_size: int = 1024,
-    max_position_embeddings: int = 256,
-    hidden_act: str = "gelu_new",
-    hidden_dropout_prob: float = 0.1,
-    attention_probs_dropout_prob: float = 0.1,
-    relative_attention: bool = False,
+    hidden_size: int,
+    num_hidden_layers: int,
+    num_attention_heads: int,
+    intermediate_size: int,
+    max_position_embeddings: int,
+    hidden_act: str,
+    hidden_dropout_prob: float,
+    attention_probs_dropout_prob: float,
+    relative_attention: bool,
 ) -> Tuple[DebertaConfig, DebertaModel]:
     config = DebertaConfig(
         vocab_size=vocab_size,
@@ -31,22 +31,17 @@ def create_deberta(
     return config, model
 
 
-def pretrained_deberta(pretrained: str) -> Tuple[DebertaConfig, DebertaModel]:
-    model = DebertaModel.from_pretrained(pretrained)
-    return model.config, model
-
-
 def create_deberta_v2(
     vocab_size: int,
-    hidden_size: int = 256,
-    num_hidden_layers: int = 4,
-    num_attention_heads: int = 4,
-    intermediate_size: int = 1024,
-    max_position_embeddings: int = 256,
-    hidden_act: str = "gelu_new",
-    hidden_dropout_prob: float = 0.1,
-    attention_probs_dropout_prob: float = 0.1,
-    relative_attention: bool = False,
+    hidden_size: int,
+    num_hidden_layers: int,
+    num_attention_heads: int,
+    intermediate_size: int,
+    max_position_embeddings: int,
+    hidden_act: str,
+    hidden_dropout_prob: float,
+    attention_probs_dropout_prob: float,
+    relative_attention: bool,
 ) -> Tuple[DebertaV2Config, DebertaV2Model]:
     config = DebertaV2Config(
         vocab_size=vocab_size,
@@ -62,8 +57,3 @@ def create_deberta_v2(
     )
     model = DebertaV2Model(config=config)
     return config, model
-
-
-def pretrained_deberta_v2(pretrained: str) -> Tuple[DebertaV2Config, DebertaV2Model]:
-    model = DebertaV2Model.from_pretrained(pretrained)
-    return model.config, model

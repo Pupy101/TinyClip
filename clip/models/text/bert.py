@@ -5,15 +5,15 @@ from transformers import BertConfig, BertModel, DistilBertConfig, DistilBertMode
 
 def create_bert(
     vocab_size: int,
-    hidden_size: int = 256,
-    num_hidden_layers: int = 4,
-    num_attention_heads: int = 4,
-    intermediate_size: int = 1024,
-    max_position_embeddings: int = 256,
-    hidden_act: str = "gelu_new",
-    hidden_dropout_prob: float = 0.1,
-    attention_probs_dropout_prob: float = 0.1,
-    position_embedding_type: str = "relative_key_query",
+    hidden_size: int,
+    num_hidden_layers: int,
+    num_attention_heads: int,
+    intermediate_size: int,
+    max_position_embeddings: int,
+    hidden_act: str,
+    hidden_dropout_prob: float,
+    attention_probs_dropout_prob: float,
+    position_embedding_type: str,
 ) -> Tuple[BertConfig, BertModel]:
     config = BertConfig(
         vocab_size=vocab_size,
@@ -31,22 +31,17 @@ def create_bert(
     return config, model
 
 
-def pretrained_bert(pretrained: str) -> Tuple[BertConfig, BertModel]:
-    model = BertModel.from_pretrained(pretrained)
-    return model.config, model
-
-
 def create_distil_bert(
     vocab_size: int,
-    hidden_size: int = 256,
-    num_hidden_layers: int = 4,
-    num_attention_heads: int = 4,
-    intermediate_size: int = 1024,
-    max_position_embeddings: int = 256,
-    hidden_act: str = "gelu_new",
-    hidden_dropout_prob: float = 0.1,
-    attention_probs_dropout_prob: float = 0.1,
-    position_embedding_type: str = "relative_key_query",
+    hidden_size: int,
+    num_hidden_layers: int,
+    num_attention_heads: int,
+    intermediate_size: int,
+    max_position_embeddings: int,
+    hidden_act: str,
+    hidden_dropout_prob: float,
+    attention_probs_dropout_prob: float,
+    position_embedding_type: str,
 ) -> Tuple[DistilBertConfig, DistilBertModel]:
     config = DistilBertConfig(
         vocab_size=vocab_size,
@@ -62,8 +57,3 @@ def create_distil_bert(
     )
     model = DistilBertModel(config=config)
     return config, model
-
-
-def pretrained_distil_bert(pretrained: str) -> Tuple[DistilBertConfig, DistilBertModel]:
-    model = DistilBertModel.from_pretrained(pretrained)
-    return model.config, model

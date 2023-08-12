@@ -1,0 +1,4 @@
+defaults:
+  - convnext_params.yaml
+
+model_type: convnext_v2

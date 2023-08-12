@@ -5,14 +5,14 @@ import pytest
 import torch
 from transformers import ConvNextConfig, ConvNextModel, ConvNextV2Config, ConvNextV2Model
 
-from clip.models import create_convnext, create_convnext_v2
+from clip.models.image.convnext import create_convnext, create_convnext_v2
 from clip.types import ImageModelType
 
 
 @pytest.mark.parametrize(
     ["model_type", "depths", "hidden_sizes", "drop_path_rate", "hidden_act"],
     product(
-        [ImageModelType.CONVNEXT.value, ImageModelType.CONVNEXTV2.value],
+        [ImageModelType.CONVNEXT.value, ImageModelType.CONVNEXT_V2.value],
         [[3, 3, 9, 3], [3, 3, 27, 3]],
         [[96, 192, 384, 768], [128, 256, 512, 1024]],
         [0.5],
@@ -33,12 +33,13 @@ def test_custom_convnext(
         "depths": depths,
         "hidden_sizes": hidden_sizes,
         "hidden_act": hidden_act,
+        "num_channels": 3,
     }
     config: Union[ConvNextConfig, ConvNextV2Config]
     model: Union[ConvNextModel, ConvNextV2Model]
     if model_type == ImageModelType.CONVNEXT.value:
         config, model = create_convnext(**kwargs)
-    elif model_type == ImageModelType.CONVNEXTV2.value:
+    elif model_type == ImageModelType.CONVNEXT_V2.value:
         config, model = create_convnext_v2(**kwargs)
     else:
         raise RuntimeError

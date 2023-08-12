@@ -1,5 +1,1 @@
-from .bert import *
-from .clip import *
-from .convnext import *
-from .deberta import *
-from .swin import *
+from .clip import CLIP, ImagePart, TextPart, TextPartMLM

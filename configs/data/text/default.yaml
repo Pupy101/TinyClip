@@ -1,0 +1,11 @@
+dataframe: ${dataframe}
+train_batch_size: ${train_batch_size}
+valid_batch_size: ${valid_batch_size}
+test_batch_size: ${test_batch_size}
+train_size: ${train_size}
+valid_size: ${valid_size}
+test_size: ${test_size}
+num_workers: 4
+tokenizer: ${tokenizer}
+text_column: ${text_column}
+max_length: ${max_length}

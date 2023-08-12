@@ -3,9 +3,9 @@ from typing import Any, Dict, Union
 
 import pytest
 import torch
-from transformers import BertConfig, BertModel, DistilBertConfig, DistilBertModel
+from transformers import DebertaConfig, DebertaModel, DebertaV2Config, DebertaV2Model
 
-from clip.models import create_bert, create_distil_bert
+from clip.models.text.deberta import create_deberta, create_deberta_v2
 from clip.types import TextModelType
 
 
@@ -21,10 +21,10 @@ from clip.types import TextModelType
         "hidden_dropout_prob",
         "attention_probs_dropout_prob",
         "max_position_embeddings",
-        "position_embedding_type",
+        "relative_attention",
     ],
     product(
-        [TextModelType.BERT.value, TextModelType.DISTILBERT.value],
+        [TextModelType.DEBERTA.value, TextModelType.DEBERTA_V2.value],
         [1_000],
         [256, 512],
         [2, 4],
@@ -34,10 +34,10 @@ from clip.types import TextModelType
         [0.1],
         [0.1],
         [256],
-        ["relative_key_query"],
+        [True, False],
     ),
 )
-def test_custom_bert(  # pylint: disable=too-many-locals
+def test_custom_deberta(  # pylint: disable=too-many-locals
     model_type: str,
     vocab_size: int,
     hidden_size: int,
@@ -48,7 +48,7 @@ def test_custom_bert(  # pylint: disable=too-many-locals
     hidden_dropout_prob: float,
     attention_probs_dropout_prob: float,
     max_position_embeddings: int,
-    position_embedding_type: str,
+    relative_attention: bool,
     device: torch.device,
 ) -> None:
     batch_size = 2
@@ -62,14 +62,14 @@ def test_custom_bert(  # pylint: disable=too-many-locals
         "hidden_dropout_prob": hidden_dropout_prob,
         "attention_probs_dropout_prob": attention_probs_dropout_prob,
         "max_position_embeddings": max_position_embeddings,
-        "position_embedding_type": position_embedding_type,
+        "relative_attention": relative_attention,
     }
-    config: Union[BertConfig, DistilBertConfig]
-    model: Union[BertModel, DistilBertModel]
-    if model_type == TextModelType.BERT.value:
-        config, model = create_bert(**kwargs)
-    elif model_type == TextModelType.DISTILBERT.value:
-        config, model = create_distil_bert(**kwargs)
+    config: Union[DebertaConfig, DebertaV2Config]
+    model: Union[DebertaModel, DebertaV2Model]
+    if model_type == TextModelType.DEBERTA.value:
+        config, model = create_deberta(**kwargs)
+    elif model_type == TextModelType.DEBERTA_V2.value:
+        config, model = create_deberta_v2(**kwargs)
     else:
         raise RuntimeError
     _ = model.to(device)

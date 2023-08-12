@@ -5,7 +5,7 @@ import pytest
 import torch
 from transformers import SwinConfig, SwinModel, Swinv2Config, Swinv2Model
 
-from clip.models import create_swin, create_swin_v2
+from clip.models.image.swin import create_swin, create_swin_v2
 from clip.types import ImageModelType
 
 
@@ -14,7 +14,7 @@ from clip.types import ImageModelType
     product(
         [ImageModelType.SWIN.value, ImageModelType.SWINV2.value],
         [[2, 2, 2, 2], [2, 2, 4, 2]],
-        [[3, 4, 6, 8], [3, 4, 8, 12]],
+        [[2, 4, 6, 8], [3, 4, 8, 12]],
         [48, 96],
         [0.5],
         ["gelu", "gelu_new"],
@@ -35,6 +35,12 @@ def test_custom_swin(
         "embed_dim": embed_dim,
         "drop_path_rate": drop_path_rate,
         "hidden_act": hidden_act,
+        "num_channels": 3,
+        "window_size": 7,
+        "mlp_ratio": 4,
+        "hidden_dropout_prob": 0.1,
+        "attention_probs_dropout_prob": 0.2,
+        "use_absolute_embeddings": False,
     }
     config: Union[SwinConfig, Swinv2Config]
     model: Union[SwinModel, Swinv2Model]

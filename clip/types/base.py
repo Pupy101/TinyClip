@@ -1,7 +1,7 @@
 import abc
 import random
 from dataclasses import dataclass
-from typing import Set
+from typing import List, Set
 
 import nltk
 import torch
@@ -21,33 +21,53 @@ class BaseModule(nn.Module):  # pylint: disable=abstract-method
 
 
 class BaseTextAugmentator:
-    INSTALLED_REQUIREMENTS: bool = False  # parameter for download requirements once
-
     def __init__(self, p: float) -> None:
         assert 0 <= p <= 1, "probability must be in interval [0, 1]"
         self.p = p
-        self.nltk_requirements: Set[str] = set()
-        self.add_requirements()
-
-    def add_nltk_requirements(self, *args: str) -> None:
-        self.nltk_requirements.update(args)
-
-    def install_requirements(self) -> None:
-        if not self.__class__.INSTALLED_REQUIREMENTS:
-            for requirement in self.nltk_requirements:
-                nltk.download(requirement)
-            self.__class__.INSTALLED_REQUIREMENTS = True
 
     @abc.abstractmethod
     def apply(self, text: str) -> str:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def add_requirements(self) -> None:
         raise NotImplementedError
 
     def transform(self, text: str) -> str:
         return text if random.random() > self.p else self.apply(text=text)
 
 
-__all__ = ["BaseOutput", "BaseModule", "BaseTextAugmentator"]
+class BaseNLTKTextAugmentator(BaseTextAugmentator):
+    def __init__(self, p: float) -> None:
+        super().__init__(p=p)
+
+    @property
+    @abc.abstractmethod
+    def nltk_requirements(self) -> Set[str]:
+        raise NotImplementedError
+
+
+class BaseComposeTextAugmentator(BaseTextAugmentator):
+    NLTK_REQUIREMENTS: Set[str] = set()
+    INSTALLED_REQUIREMENTS: bool = False
+
+    def __init__(self, augmentators: List[BaseTextAugmentator]) -> None:
+        self.augmentators = augmentators
+        super().__init__(p=1.0)
+        for augmentator in self.augmentators:
+            if isinstance(augmentator, BaseNLTKTextAugmentator):
+                type(self).NLTK_REQUIREMENTS.update(augmentator.nltk_requirements)
+
+    def apply(self, text: str) -> str:
+        if not self.INSTALLED_REQUIREMENTS and self.NLTK_REQUIREMENTS:
+            for requirement in self.NLTK_REQUIREMENTS:
+                nltk.download(requirement, quiet=True)
+            type(self).INSTALLED_REQUIREMENTS = True
+        for augmentator in self.augmentators:
+            text = augmentator.transform(text=text)
+        return text
+
+
+__all__ = [
+    "BaseOutput",
+    "BaseModule",
+    "BaseTextAugmentator",
+    "BaseNLTKTextAugmentator",
+    "BaseComposeTextAugmentator",
+]
