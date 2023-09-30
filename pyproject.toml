@@ -1,0 +1,31 @@
+[tool.pylint]
+max-line-length = 120
+disable = [
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "duplicate-code",
+    "import-error",
+    "no-member",
+    "unspecified-encoding",
+    "too-many-arguments",
+    "too-many-instance-attributes",
+    "arguments-differ",
+]
+good-names = "p,df,i,it"
+
+[tool.mypy]
+ignore_missing_imports = true
+
+[tool.black]
+line-length = 120
+target-version = ['py38', 'py39', 'py310', 'py311']
+
+[tool.isort]
+line_length = 120
+profile = "black"
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore::DeprecationWarning"
+]

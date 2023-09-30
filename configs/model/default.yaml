@@ -1,0 +1,3 @@
+defaults:
+  - image: convnext.yaml
+  - text: bert.yaml

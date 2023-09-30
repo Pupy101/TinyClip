@@ -1,0 +1,14 @@
+# @package _global_
+
+defaults:
+  - _self_
+  - model: default.yaml
+  - data: default.yaml
+  - accelerator: default.yaml
+
+mode: text
+
+dataframe: /Users/19891176/Desktop/MyProjects/CLIP/.exp/data.csv
+
+vocab_size: 8_000
+tokenizer: /Users/19891176/Desktop/MyProjects/CLIP/.exp/dump/vocab.txt

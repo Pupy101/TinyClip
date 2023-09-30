@@ -1,23 +1,8 @@
-# Homemade CLIP with training only image part.
-
-## For use:
-1. Download dataset; (for training I use 3 datasets [coco](https://www.kaggle.com/mrviswamitrakaushik/image-captioning-data), [flickr8k](https://www.kaggle.com/ashish2001/original-flickr8k-dataset), [flikr30k](https://www.kaggle.com/adityajn105/flickr30k))
-2. Then i preprocess datasets with scrip to create .csv needed for training (in colab it):
-```bash
-!python /content/CLIP/preprocessing_dataset.py \
-    --dir_jsons '/content/caption_datasets' --coco_train '/content/train2014' \
-    --coco_valid '/content/val2014' --flickr8k '/content/Flickr8k_Dataset/Flicker8k_Dataset' \
-    --flickr30k '/content/Images/flickr30k_images' --target_csv '/content'
-```
-3. Configure the file `config.py`;
-4. Start:
-```bash 
-!python main.py
-```
-
-#### If you don't need training skip step 1 and step 2.
+# Homemade CLIP on 
 
 ---
 
-#### Pretrained weights:
-```coming soon```
+### Train clip in 3 steps:
+1. Pretrain text part on MLM task;
+2. Pretrain image part on classification task + KL Divergence to text embedding by text part;
+3. Fintune image + text part with contrastive loss.

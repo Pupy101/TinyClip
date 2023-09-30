@@ -1,0 +1,11 @@
+_target_: accelerate.Accelerator
+
+device_placement: true
+split_batches: false
+mixed_precision: null
+gradient_accumulation_steps: 1
+cpu: false
+log_with: null
+project_dir: null
+dispatch_batches: null
+step_scheduler_with_optimizer: true
