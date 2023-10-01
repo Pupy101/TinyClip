@@ -1,4 +1,0 @@
-defaults:
-  - bert_params.yaml
-
-model_type: deberta_v2

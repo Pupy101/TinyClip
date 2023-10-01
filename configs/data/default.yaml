@@ -1,17 +1,9 @@
-defaults:
-  - clip: default.yaml
-  - image: default.yaml
-  - text: default.yaml
+_target_: src.data.datamodule.CLIPDataModule
 
-train_batch_size: 32
-valid_batch_size: 32
-test_batch_size: 32
-
-train_size: 0.5
-valid_size: 0.1
-test_size: 0.4
-
-image_column: image
-text_column: text
-
-max_length: 512
+train_path: ???
+val_path: ???
+test_path: ???
+tokenizer: ${text_pretrained}
+max_length: null
+batch_size: ${batch_size}
+num_workers: ???

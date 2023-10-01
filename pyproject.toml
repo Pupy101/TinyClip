@@ -1,18 +1,20 @@
 [tool.pylint]
 max-line-length = 120
 disable = [
+    "too-many-instance-attributes",
+    "missing-function-docstring",
     "missing-module-docstring",
     "missing-class-docstring",
-    "missing-function-docstring",
+    "unspecified-encoding",
+    "too-many-arguments",
+    "no-name-in-module",
+    "arguments-differ",
+    "protected-access",
     "duplicate-code",
     "import-error",
     "no-member",
-    "unspecified-encoding",
-    "too-many-arguments",
-    "too-many-instance-attributes",
-    "arguments-differ",
 ]
-good-names = "p,df,i,it"
+good-names = "p,df,i,it,sh,f1"
 
 [tool.mypy]
 ignore_missing_imports = true

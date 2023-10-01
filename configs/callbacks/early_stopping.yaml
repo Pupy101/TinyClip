@@ -1,0 +1,9 @@
+early_stopping:
+  _target_: lightning.pytorch.callbacks.EarlyStopping
+  monitor: "val/loss"
+  min_delta: 1
+  patience: 3
+  verbose: false
+  mode: "min"
+  strict: false
+  check_finite: true

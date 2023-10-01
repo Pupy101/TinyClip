@@ -1,0 +1,5 @@
+ignore_warnings: false
+
+enforce_tags: false
+
+print_config: true
