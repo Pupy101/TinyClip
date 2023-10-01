@@ -2,10 +2,9 @@ from typing import Optional, Tuple
 
 from lightning import LightningModule
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
-from torch import Tensor, nn, ones, sigmoid, zeros
-from torch.nn import functional as F
+from torch import Tensor, arange, argmax, nn, sigmoid
 from torchmetrics import MeanMetric
-from torchmetrics.classification import BinaryF1Score
+from torchmetrics.classification import MulticlassAccuracy, MulticlassF1Score
 from transformers import BatchEncoding
 
 from src.models.clip import Clip
@@ -19,22 +18,33 @@ class CLIPModule(LightningModule):
         text_encoder: nn.Module,
         optimizer: Optimizer,  # pylint: disable=unused-argument
         scheduler: Optional[Scheduler],  # pylint: disable=unused-argument
-        pos_weight: float,
+        label_smoothing: Optional[float],
+        batch_size: int,
     ) -> None:
         super().__init__()
 
-        self.save_hyperparameters(logger=False, ignore=["image_encoder", "text_encoder"])
+        self.save_hyperparameters(
+            logger=False,
+            ignore=["image_encoder", "text_encoder", "label_smoothing", "batch_size"],
+        )
 
         self.clip = Clip(image_encoder=image_encoder, text_encoder=text_encoder)
-        self.pos_weight = pos_weight
+
+        label_smoothing = label_smoothing or 0.0
+        self.criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
+        self.batch_size = batch_size
 
         self.loss_train = MeanMetric()
         self.loss_val = MeanMetric()
         self.loss_test = MeanMetric()
 
-        self.f1_train = BinaryF1Score()
-        self.f1_val = BinaryF1Score()
-        self.f1_test = BinaryF1Score()
+        self.acc_train = MulticlassAccuracy(num_classes=batch_size, average="weighted")
+        self.acc_val = MulticlassAccuracy(num_classes=batch_size, average="weighted")
+        self.acc_test = MulticlassAccuracy(num_classes=batch_size, average="weighted")
+
+        self.f1_train = MulticlassF1Score(num_classes=batch_size, average="weighted")
+        self.f1_val = MulticlassF1Score(num_classes=batch_size, average="weighted")
+        self.f1_test = MulticlassF1Score(num_classes=batch_size, average="weighted")
 
     def forward(self, batch: BatchEncoding) -> Tuple[Tensor, Tensor]:
         images = batch.pop("images")
@@ -44,28 +54,26 @@ class CLIPModule(LightningModule):
         return image_logits, text_logits
 
     def model_step(self, batch: BatchEncoding) -> Tuple[Tensor, Tensor, Tensor]:
-        image_indexes, text_indexes = batch.pop("image_indexes"), batch.pop("text_indexes")
         image_logits, text_logits = self.forward(batch=batch)
-        labels = zeros(image_logits.size(0), text_logits.size(0), device=self.device)
-        labels[image_indexes, text_indexes] = 1
-        pos_weight = self.pos_weight * ones(labels.size(1), device=self.device)
-        image_loss = F.binary_cross_entropy_with_logits(image_logits, labels, pos_weight=pos_weight)
-        pos_weight = self.pos_weight * ones(labels.size(0), device=self.device)
-        text_loss = F.binary_cross_entropy_with_logits(text_logits, labels.t(), pos_weight=pos_weight)
-        probas = sigmoid(image_logits.reshape(-1))
-        return image_loss + text_loss, probas, labels.reshape(-1)
+        labels = arange(image_logits.size(0), device=self.device)
+        loss = self.criterion(image_logits, labels) + self.criterion(text_logits, labels)
+        probas = sigmoid(image_logits) if image_logits.size(1) == self.batch_size else argmax(image_logits, dim=-1)
+        return loss, probas, labels
 
     def on_train_start(self) -> None:
         self.loss_val.reset()
+        self.acc_val.reset()
         self.f1_val.reset()
 
     def training_step(self, batch: BatchEncoding, _: int) -> Tensor:
         loss, probas, labels = self.model_step(batch)
 
         self.loss_train(loss)
+        acc = self.acc_train(probas, labels)
         f1 = self.f1_train(probas, labels)
 
         self.log("train/loss", self.loss_train, on_step=True, on_epoch=True, prog_bar=True)
+        self.log("train/acc", acc, on_step=False, on_epoch=True, prog_bar=True)
         self.log("train/f1", f1, on_step=False, on_epoch=True, prog_bar=True)
 
         return loss
@@ -74,18 +82,22 @@ class CLIPModule(LightningModule):
         loss, probas, labels = self.model_step(batch)
 
         self.loss_val(loss)
+        acc = self.acc_val(probas, labels)
         f1 = self.f1_val(probas, labels)
 
         self.log("val/loss", self.loss_val, on_step=True, on_epoch=True, prog_bar=True)
+        self.log("val/acc", acc, on_step=False, on_epoch=True, prog_bar=True)
         self.log("val/f1", f1, on_step=False, on_epoch=True, prog_bar=True)
 
     def test_step(self, batch: BatchEncoding, _: int) -> None:
         loss, probas, labels = self.model_step(batch)
 
         self.loss_test(loss)
+        acc = self.acc_test(probas, labels)
         f1 = self.f1_test(probas, labels)
 
         self.log("test/loss", self.loss_test, on_step=True, on_epoch=True, prog_bar=True)
+        self.log("test/acc", acc, on_step=False, on_epoch=True, prog_bar=True)
         self.log("test/f1", f1, on_step=False, on_epoch=True, prog_bar=True)
 
     def configure_optimizers(self) -> OptimizerLRSchedulerConfig:

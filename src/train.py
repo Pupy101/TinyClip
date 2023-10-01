@@ -93,4 +93,3 @@ def main(cfg: DictConfig) -> Optional[float]:
 
 if __name__ == "__main__":
     main()  # pylint: disable=no-value-for-parameter
-    from lightning.pytorch.callbacks import RichProgressBar

@@ -10,18 +10,18 @@ data:
   val_path: /home/sporkhun/CLIP/data/gcc_valid.tsv
   test_path: /home/sporkhun/CLIP/data/gcc_valid.tsv
   max_length: 512
-  batch_size: 600
   num_workers: 16
 
 model:
-  pos_weight: 100
+  label_smoothing: 0.1
 
 trainer:
-  min_epochs: 10
+  min_epochs: 20
   gradient_clip_val: 5.0
   devices: 4
 
-count_steps: 5_000
+count_steps: 12_000
+batch_size: 500
 image_pretrained: facebook/convnext-tiny-224
 text_pretrained: cointegrated/rubert-tiny2
 embedding_dim: 192

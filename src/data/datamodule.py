@@ -45,7 +45,6 @@ class CLIPDataModule(LightningDataModule):
             shuffle=True,
             num_workers=self.num_workers,
             collate_fn=create_collate_fn(tokenizer=self.tokenizer, max_length=self.max_len),
-            drop_last=True,
         )
 
     def val_dataloader(self) -> DataLoader:
@@ -55,7 +54,6 @@ class CLIPDataModule(LightningDataModule):
             shuffle=False,
             num_workers=self.num_workers,
             collate_fn=create_collate_fn(tokenizer=self.tokenizer, max_length=self.max_len),
-            drop_last=True,
         )
 
     def test_dataloader(self) -> DataLoader:
@@ -65,5 +63,4 @@ class CLIPDataModule(LightningDataModule):
             shuffle=False,
             num_workers=self.num_workers,
             collate_fn=create_collate_fn(tokenizer=self.tokenizer, max_length=self.max_len),
-            drop_last=True,
         )

@@ -19,7 +19,7 @@ tags: ["dev"]
 
 train: true
 
-test: true
+test: false
 
 ckpt_path: null
 

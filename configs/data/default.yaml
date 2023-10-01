@@ -5,5 +5,5 @@ val_path: ???
 test_path: ???
 tokenizer: ${text_pretrained}
 max_length: null
-batch_size: ???
+batch_size: ${batch_size}
 num_workers: ???

@@ -15,10 +15,11 @@ hydra:
       level: DEBUG
 
 trainer:
-  max_epochs: 1
+  accelerator: gpu
+  strategy: auto
+  max_steps: 10
   devices: 1
   detect_anomaly: true
 
 data:
   num_workers: 0
-  pin_memory: False
