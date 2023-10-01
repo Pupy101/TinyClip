@@ -1,3 +1,27 @@
-defaults:
-  - image: convnext.yaml
-  - text: bert.yaml
+_target_: src.models.module.CLIPModule
+
+image_encoder:
+  _target_: transformers.AutoModelForImageClassification.from_pretrained
+  pretrained_model_name_or_path: ${image_pretrained}
+  num_labels: ${embedding_dim}
+  ignore_mismatched_sizes: true
+
+text_encoder:
+  _target_: transformers.AutoModelForSequenceClassification.from_pretrained
+  pretrained_model_name_or_path: ${text_pretrained}
+  num_labels: ${embedding_dim}
+
+optimizer:
+  _target_: torch.optim.AdamW
+  _partial_: true
+  lr: 1.0e-3
+  weight_decay: 5.0e-4
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.OneCycleLR
+  _partial_: true
+  max_lr: 1.0e-3
+  total_steps: ${count_steps}
+  pct_start: 0.1
+
+pos_weight: ???

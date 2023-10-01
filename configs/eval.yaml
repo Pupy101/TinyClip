@@ -4,23 +4,14 @@ defaults:
   - _self_
   - data: default
   - model: default
-  - callbacks: default
-  - logger: many_loggers
+  - logger: null
   - trainer: default
   - paths: default
   - extras: default
   - hydra: default
-  - experiment: null
-  - debug: null
 
-task_name: "train"
+task_name: "eval"
 
 tags: ["dev"]
 
-train: true
-
-test: true
-
-ckpt_path: null
-
-seed: null
+ckpt_path: ???
