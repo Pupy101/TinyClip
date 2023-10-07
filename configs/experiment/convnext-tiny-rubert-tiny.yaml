@@ -3,28 +3,31 @@
 defaults:
   - override /data: default
   - override /model: default
-  - override /trainer: ddp
+  - override /trainer: gpu
 
 data:
-  train_path: /home/sporkhun/CLIP/data/gcc_train.tsv
-  val_path: /home/sporkhun/CLIP/data/gcc_valid.tsv
-  test_path: /home/sporkhun/CLIP/data/gcc_valid.tsv
+  train_path: /home/sporkhun/CLIP/data/train.tsv
+  val_path: /home/sporkhun/CLIP/data/valid.tsv
+  test_path: /home/sporkhun/CLIP/data/valid.tsv
   max_length: 512
   num_workers: 16
 
 model:
   label_smoothing: 0.1
+  image_train_part: 1.0
+  text_train_part: 0.7
 
 trainer:
-  min_epochs: 20
   gradient_clip_val: 5.0
   devices: 4
+  accumulate_grad_batches: 8
+  max_epochs: 60
 
-count_steps: 12_000
-batch_size: 500
+count_steps: 2_500
+batch_size: 800
 image_pretrained: facebook/convnext-tiny-224
 text_pretrained: cointegrated/rubert-tiny2
-embedding_dim: 192
+embedding_dim: 128
 
 seed: 0xFEED
 

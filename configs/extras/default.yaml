@@ -1,4 +1,4 @@
-ignore_warnings: false
+ignore_warnings: true
 
 enforce_tags: false
 

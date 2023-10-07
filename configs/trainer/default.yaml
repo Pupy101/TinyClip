@@ -3,15 +3,10 @@ _target_: lightning.pytorch.trainer.Trainer
 default_root_dir: ${paths.output_dir}
 
 min_epochs: 1
-max_epochs: 10
+max_epochs: ???
 
-accelerator: cpu
 devices: 1
 
-precision: 32
+precision: 16
 
 check_val_every_n_epoch: 1
-
-num_sanity_val_steps: null
-
-deterministic: true

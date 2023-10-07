@@ -18,6 +18,7 @@ good-names = "p,df,i,it,sh,f1"
 
 [tool.mypy]
 ignore_missing_imports = true
+disable_error_code = ["attr-defined"]
 
 [tool.black]
 line-length = 120

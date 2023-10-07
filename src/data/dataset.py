@@ -1,11 +1,10 @@
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 import albumentations as A
-import numpy as np
 from pandas import DataFrame
-from PIL import Image
 from torch import Tensor
 from torch.utils.data import Dataset
+from utilities.data import load_image
 
 from src.utils import RankedLogger
 
@@ -19,13 +18,13 @@ class CLIPDataset(Dataset):
         assert "image" in columns, "Not found column 'image' in dataframe"
         self.img_idx = columns.index("image")
         assert "ru_text" in columns or "en_text" in columns, "Not found column 'ru_text' or 'en_text' in dataframe"
-        self.ru_idx = columns.index("ru_text") if "ru_text" in columns else None
-        self.en_idx = columns.index("en_text") if "en_text" in columns else None
+        self.ru_idx = columns.index("ru_text")
+        self.en_idx = columns.index("en_text")
         self.transform = transform
 
-    def prepare_image(self, img: Union[str, bytes]) -> Optional[Tensor]:
+    def prepare_image(self, img: str) -> Optional[Tensor]:
         try:
-            image = np.array(Image.open(img))
+            image = load_image(img)
             image = self.transform(image=image)["image"]
             return image  # type: ignore
         except Exception:  # pylint: disable=broad-exception-caught
@@ -35,10 +34,12 @@ class CLIPDataset(Dataset):
     def __getitem__(self, idx: int) -> Tuple[Optional[Tensor], List[str]]:  # type: ignore
         img = self.prepare_image(self.df.iloc[idx, self.img_idx])
         texts: List[str] = []
-        if self.ru_idx is not None:
-            texts.append(self.df.iloc[idx, self.ru_idx])
-        if self.en_idx is not None:
-            texts.append(self.df.iloc[idx, self.en_idx])
+        ru_text = self.df.iloc[idx, self.ru_idx]
+        en_text = self.df.iloc[idx, self.en_idx]
+        if isinstance(ru_text, str):
+            texts.append(ru_text)
+        if isinstance(en_text, str):
+            texts.append(en_text)
 
         return img, texts
 

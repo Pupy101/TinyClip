@@ -1,3 +1,4 @@
+git+https://github.com/Pupy101/utilities.git@master
 hydra-colorlog==1.2.0
 hydra-core==1.3.2
 hydra-optuna-sweeper==1.2.0
