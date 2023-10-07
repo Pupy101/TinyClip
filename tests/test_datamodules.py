@@ -8,7 +8,7 @@ from src.data.datamodule import CLIPDataModule
 
 @pytest.mark.parametrize("batch_size", [32, 128])
 def test_mnist_datamodule(batch_size: int) -> None:
-    path = "data/gcc_valid.tsv"
+    path = "data/valid.tsv"
     assert Path(path).exists()
 
     dm = CLIPDataModule(
