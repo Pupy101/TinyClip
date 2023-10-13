@@ -17,9 +17,9 @@ hydra:
 trainer:
   accelerator: gpu
   strategy: auto
-  max_steps: 10
+  max_steps: 100
   devices: 1
   detect_anomaly: true
 
-data:
-  num_workers: 0
+# data:
+#   num_workers: 0

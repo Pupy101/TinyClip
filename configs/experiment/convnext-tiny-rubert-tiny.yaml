@@ -10,7 +10,7 @@ data:
   val_path: /home/sporkhun/CLIP/data/valid.tsv
   test_path: /home/sporkhun/CLIP/data/valid.tsv
   max_length: 512
-  num_workers: 16
+  num_workers: 8
 
 model:
   label_smoothing: 0.1

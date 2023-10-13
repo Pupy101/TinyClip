@@ -11,6 +11,8 @@ data:
   test_path: /home/sporkhun/CLIP/data/valid.tsv
   max_length: 512
   num_workers: 8
+  crop: 288
+  size: 256
 
 model:
   label_smoothing: 0.1
@@ -24,13 +26,13 @@ trainer:
   max_epochs: 60
 
 count_steps: 2_500
-batch_size: 800
-image_pretrained: microsoft/swin-tiny-patch4-window7-224
+batch_size: 600
+image_pretrained: apple/mobilevit-small
 text_pretrained: cointegrated/rubert-tiny2
 embedding_dim: 128
 
 seed: 0xFEED
 
-tags: ["convext-tiny", "rubert-tiny"]
+tags: ["mobilevit-small", "rubert-tiny"]
 
-task_name: "train-swin-rubert"
+task_name: "train-mobilevit-rubert"

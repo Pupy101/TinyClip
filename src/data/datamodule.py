@@ -1,13 +1,13 @@
-from typing import Optional
+from typing import Optional, Sequence
 
 import pandas as pd
 from lightning import LightningDataModule
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
 
-from src.data.augmentations import create_augmentations
 from src.data.collate_fn import create_collate_fn
 from src.data.dataset import CLIPDataset
+from src.data.transform import ImageTransform
 
 
 class CLIPDataModule(LightningDataModule):
@@ -20,27 +20,32 @@ class CLIPDataModule(LightningDataModule):
         max_length: Optional[int],  # pylint: disable=unused-argument
         batch_size: int,  # pylint: disable=unused-argument
         num_workers: int,  # pylint: disable=unused-argument
+        mean: Sequence[float],
+        std: Sequence[float],
+        crop: int,
+        size: int,
     ) -> None:
         super().__init__()
 
-        self.save_hyperparameters(logger=False, ignore="tokenizer")
+        self.save_hyperparameters(logger=False, ignore=["tokenizer", "mean", "std", "crop", "size"])
 
         self.data_train: Optional[CLIPDataset] = None
         self.data_val: Optional[CLIPDataset] = None
         self.data_test: Optional[CLIPDataset] = None
 
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer)
+        self.augmentation = ImageTransform(mean=mean, std=std, crop=crop, size=size)
 
     def setup(self, stage: str) -> None:
         if stage == "fit" and self.data_train is None:
             df_train = pd.read_csv(self.hparams.train_path, sep="\t", dtype={"ru_text": str, "en_text": str})
-            self.data_train = CLIPDataset(df_train, transform=create_augmentations("train"))
+            self.data_train = CLIPDataset(df_train, transform=self.augmentation.create("train"))
         if stage in {"fit", "validate"} and self.data_val is None:
             df_val = pd.read_csv(self.hparams.val_path, sep="\t", dtype={"ru_text": str, "en_text": str})
-            self.data_val = CLIPDataset(df_val, transform=create_augmentations("val"))
+            self.data_val = CLIPDataset(df_val, transform=self.augmentation.create("val"))
         if stage == "test" and self.data_test is None:
             df_test = pd.read_csv(self.hparams.test_path, sep="\t", dtype={"ru_text": str, "en_text": str})
-            self.data_test = CLIPDataset(df_test, transform=create_augmentations("test"))
+            self.data_test = CLIPDataset(df_test, transform=self.augmentation.create("test"))
 
     def train_dataloader(self) -> DataLoader:
         assert self.data_train is not None

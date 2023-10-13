@@ -4,7 +4,6 @@ defaults:
   - default
 
 trainer:
-  max_epochs: 1
   profiler: "simple"
   # profiler: "advanced"
   # profiler: "pytorch"
