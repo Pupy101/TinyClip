@@ -1,3 +1,3 @@
 #!/bin/bash
 
-python src/train.py experiment=mobilevit-xx-small-rubert-tiny
+python src/train.py experiment=convnext-tiny-rubert-tiny-distil
