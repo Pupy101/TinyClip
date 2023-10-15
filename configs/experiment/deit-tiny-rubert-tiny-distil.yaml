@@ -1,0 +1,55 @@
+# @package _global_
+
+defaults:
+  - override /data: default
+  - override /model: default
+  - override /trainer: ddp
+
+data:
+  train_path: /home/sporkhun/CLIP/data/train.tsv
+  val_path: /home/sporkhun/CLIP/data/valid.tsv
+  test_path: /home/sporkhun/CLIP/data/valid.tsv
+  max_length: 512
+  num_workers: 8
+  teacher_tokenizer: ${teacher_pretrained}
+  teacher_max_length: 77
+  mean: [0.48145466, 0.4578275, 0.40821073]
+  std: [0.26862954, 0.26130258, 0.27577711]
+
+model:
+  _target_: src.models.module.DistilCLIPModule
+  teacher_image_encoder:
+    _target_: transformers.CLIPVisionModel.from_pretrained
+    pretrained_model_name_or_path: ${teacher_pretrained}
+  image_proj:
+    _target_: torch.nn.Linear
+    in_features: ${embedding_dim}
+    out_features: 1024
+  image_train_part: 1.0
+  teacher_text_encoder:
+    _target_: transformers.CLIPTextModel.from_pretrained
+    pretrained_model_name_or_path: ${teacher_pretrained}
+  text_proj:
+    _target_: torch.nn.Linear
+    in_features: ${embedding_dim}
+    out_features: 768
+  text_train_part: 0.7
+  label_smoothing: 0.1
+
+trainer:
+  gradient_clip_val: 5.0
+  accumulate_grad_batches: 8
+  max_epochs: 60
+
+count_steps: 2_500
+batch_size: 1_600
+image_pretrained: facebook/deit-tiny-patch16-224
+text_pretrained: cointegrated/rubert-tiny2
+teacher_pretrained: openai/clip-vit-large-patch14
+embedding_dim: 128
+
+seed: 0xFEED
+
+tags: ["convext-tiny", "rubert-tiny"]
+
+task_name: "train-deit-rubert-distil"

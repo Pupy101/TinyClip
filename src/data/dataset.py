@@ -14,13 +14,14 @@ log = RankedLogger(__name__, is_rank_zero_only=True)
 class CLIPDataset(Dataset):
     def __init__(self, dataframe: DataFrame, transform: A.Compose) -> None:
         self.df = dataframe
+        self.transform = transform
+
         columns = list(dataframe.columns)
         assert "image" in columns, "Not found column 'image' in dataframe"
         self.img_idx = columns.index("image")
         assert "ru_text" in columns or "en_text" in columns, "Not found column 'ru_text' or 'en_text' in dataframe"
         self.ru_idx = columns.index("ru_text")
         self.en_idx = columns.index("en_text")
-        self.transform = transform
 
     def prepare_image(self, img: str) -> Optional[Tensor]:
         try:

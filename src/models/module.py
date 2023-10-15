@@ -3,6 +3,7 @@ from typing import Optional, Tuple
 from lightning import LightningModule
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from torch import Tensor, arange, argmax, nn
+from torch.nn import functional as F
 from torchmetrics import MeanMetric, Metric
 from torchmetrics.classification import MulticlassAccuracy, MulticlassF1Score
 from transformers import BatchEncoding
@@ -139,3 +140,86 @@ class CLIPModule(LightningModule):
                 },
             }
         return {"optimizer": optimizer}
+
+
+class DistilCLIPModule(CLIPModule):  # pylint: disable=too-many-ancestors
+    def __init__(
+        self,
+        image_encoder: nn.Module,
+        teacher_image_encoder: nn.Module,
+        image_proj: nn.Module,
+        image_train_part: float,
+        text_encoder: nn.Module,
+        teacher_text_encoder: nn.Module,
+        text_proj: nn.Module,
+        text_train_part: float,
+        optimizer: Optimizer,
+        scheduler: Optional[Scheduler],
+        label_smoothing: Optional[float],
+        batch_size: int,
+    ) -> None:
+        super().__init__(
+            image_encoder=image_encoder,
+            image_train_part=image_train_part,
+            text_encoder=text_encoder,
+            text_train_part=text_train_part,
+            optimizer=optimizer,
+            scheduler=scheduler,
+            label_smoothing=label_smoothing,
+            batch_size=batch_size,
+        )
+
+        self.teacher = Clip(image_encoder=teacher_image_encoder, text_encoder=teacher_text_encoder)
+        freeze_model(self.teacher, full=True)
+
+        self.image_proj = image_proj
+        self.text_proj = text_proj
+
+        self.distil_criterion = nn.KLDivLoss(reduction="batchmean")
+
+    def forward(self, batch: BatchEncoding) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:  # type: ignore[override]
+        images = batch.pop("images")
+        teacher_batch = BatchEncoding()
+        for key in sorted(batch.keys()):
+            if key.startswith("teacher_"):
+                teacher_batch[key.replace("teacher_", "")] = batch.pop(key)
+        teacher_image_embeddings = self.teacher.normalize(self.teacher.image_encoder(images).pooler_output)
+        teacher_text_embeddings = self.teacher.normalize(self.teacher.text_encoder(**teacher_batch).pooler_output)
+
+        image_embeddings = self.clip.normalize(self.clip.image_encoder(images).logits)
+        text_embeddings = self.clip.normalize(self.clip.text_encoder(**batch).logits)
+
+        image_logits, text_logits = self.clip(image_embeddings=image_embeddings, text_embeddings=text_embeddings)
+
+        return (
+            image_embeddings,
+            text_embeddings,
+            teacher_image_embeddings,
+            teacher_text_embeddings,
+            image_logits,
+            text_logits,
+        )
+
+    def model_step(self, batch: BatchEncoding) -> Tuple[Tensor, Tensor, Tensor]:
+        (
+            image_embeddings,
+            text_embeddings,
+            teacher_image_embeddings,
+            teacher_text_embeddings,
+            image_logits,
+            text_logits,
+        ) = self.forward(batch=batch)
+
+        labels = arange(image_logits.size(0), device=self.device)
+        loss = self.criterion(image_logits, labels) + self.criterion(text_logits, labels)
+
+        image_distrib = F.log_softmax(self.image_proj(image_embeddings), dim=1)
+        image_target = F.softmax(teacher_image_embeddings, dim=1)
+        text_distrib = F.log_softmax(self.text_proj(text_embeddings), dim=1)
+        text_target = F.softmax(teacher_text_embeddings, dim=1)
+
+        loss += 10 * self.distil_criterion(image_distrib, image_target)
+        loss += 10 * self.distil_criterion(text_distrib, text_target)
+
+        predict = argmax(image_logits, dim=-1)
+        return loss, predict, labels

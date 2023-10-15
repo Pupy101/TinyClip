@@ -18,15 +18,18 @@ def cfg_train_global() -> DictConfig:
 
         # set defaults for all tests
         with open_dict(cfg):
+            cfg.callbacks = None
             cfg.paths.root_dir = str(rootutils.find_root(indicator=".project-root"))
             cfg.trainer.max_epochs = 1
             cfg.trainer.limit_train_batches = 0.01
             cfg.trainer.limit_val_batches = 0.1
             cfg.trainer.limit_test_batches = 0.1
             cfg.trainer.accelerator = "cpu"
+            cfg.trainer.sync_batchnorm = False
             cfg.trainer.devices = 1
             cfg.data.num_workers = 0
-            cfg.data.pin_memory = False
+            cfg.data.batch_size = 4
+            cfg.model.batch_size = 4
             cfg.extras.print_config = False
             cfg.extras.enforce_tags = False
             cfg.logger = None
@@ -45,13 +48,16 @@ def cfg_eval_global() -> DictConfig:
 
         # set defaults for all tests
         with open_dict(cfg):
+            cfg.callbacks = None
             cfg.paths.root_dir = str(rootutils.find_root(indicator=".project-root"))
             cfg.trainer.max_epochs = 1
             cfg.trainer.limit_test_batches = 0.1
             cfg.trainer.accelerator = "cpu"
+            cfg.trainer.sync_batchnorm = False
             cfg.trainer.devices = 1
             cfg.data.num_workers = 0
-            cfg.data.pin_memory = False
+            cfg.data.batch_size = 4
+            cfg.model.batch_size = 4
             cfg.extras.print_config = False
             cfg.extras.enforce_tags = False
             cfg.logger = None

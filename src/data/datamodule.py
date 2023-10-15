@@ -1,11 +1,12 @@
-from typing import Optional, Sequence
+from typing import Callable, Iterable, List, Optional, Sequence, Tuple
 
 import pandas as pd
 from lightning import LightningDataModule
+from torch import Tensor
 from torch.utils.data import DataLoader
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, BatchEncoding
 
-from src.data.collate_fn import create_collate_fn
+from src.data.collate_fn import create_collate_fn, create_collate_with_teacher_fn
 from src.data.dataset import CLIPDataset
 from src.data.transform import ImageTransform
 
@@ -24,6 +25,8 @@ class CLIPDataModule(LightningDataModule):
         std: Sequence[float],
         crop: int,
         size: int,
+        teacher_tokenizer: Optional[str] = None,
+        teacher_max_length: Optional[int] = None,  # pylint: disable=unused-argument
     ) -> None:
         super().__init__()
 
@@ -34,6 +37,7 @@ class CLIPDataModule(LightningDataModule):
         self.data_test: Optional[CLIPDataset] = None
 
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer)
+        self.teacher_tokenizer = AutoTokenizer.from_pretrained(teacher_tokenizer) if teacher_tokenizer else None
         self.augmentation = ImageTransform(mean=mean, std=std, crop=crop, size=size)
 
     def setup(self, stage: str) -> None:
@@ -47,14 +51,27 @@ class CLIPDataModule(LightningDataModule):
             df_test = pd.read_csv(self.hparams.test_path, sep="\t", dtype={"ru_text": str, "en_text": str})
             self.data_test = CLIPDataset(df_test, transform=self.augmentation.create("test"))
 
+    def create_collate(self) -> Callable[[Iterable[Tuple[Optional[Tensor], List[str]]]], BatchEncoding]:
+        if self.teacher_tokenizer:
+            collate_fn = create_collate_with_teacher_fn(
+                tokenizer=self.tokenizer,
+                teacher_tokenizer=self.teacher_tokenizer,
+                max_length=self.hparams.max_length,
+                teacher_max_length=self.hparams.teacher_max_length,
+            )
+        else:
+            collate_fn = create_collate_fn(tokenizer=self.tokenizer, max_length=self.hparams.max_length)
+        return collate_fn
+
     def train_dataloader(self) -> DataLoader:
         assert self.data_train is not None
+
         return DataLoader(
             dataset=self.data_train,
             batch_size=self.hparams.batch_size,
             shuffle=True,
             num_workers=self.hparams.num_workers,
-            collate_fn=create_collate_fn(self.tokenizer, max_length=self.hparams.max_length),
+            collate_fn=self.create_collate(),
         )
 
     def val_dataloader(self) -> DataLoader:
@@ -64,7 +81,7 @@ class CLIPDataModule(LightningDataModule):
             batch_size=self.hparams.batch_size,
             shuffle=False,
             num_workers=self.hparams.num_workers,
-            collate_fn=create_collate_fn(self.tokenizer, max_length=self.hparams.max_length),
+            collate_fn=self.create_collate(),
         )
 
     def test_dataloader(self) -> DataLoader:
@@ -74,5 +91,5 @@ class CLIPDataModule(LightningDataModule):
             batch_size=self.hparams.batch_size,
             shuffle=False,
             num_workers=self.hparams.num_workers,
-            collate_fn=create_collate_fn(self.tokenizer, max_length=self.hparams.max_length),
+            collate_fn=self.create_collate(),
         )

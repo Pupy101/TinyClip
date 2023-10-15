@@ -13,13 +13,12 @@ data:
   num_workers: 8
 
 model:
-  label_smoothing: 0.1
   image_train_part: 1.0
   text_train_part: 0.7
+  label_smoothing: 0.1
 
 trainer:
   gradient_clip_val: 5.0
-  devices: 4
   accumulate_grad_batches: 8
   max_epochs: 60
 
