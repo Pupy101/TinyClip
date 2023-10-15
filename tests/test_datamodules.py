@@ -16,12 +16,17 @@ def test_clip_datamodule(batch_size: int) -> None:
         val_path=path,
         test_path=path,
         tokenizer="cointegrated/rubert-tiny2",
-        max_length=2048,
-        batch_size=4,
+        max_length=256,
+        batch_size=batch_size,
         num_workers=4,
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225],
+        crop=250,
+        size=224,
     )
-    assert dm.data_train and dm.data_val and dm.data_test
-    assert dm.train_dataloader() and dm.val_dataloader() and dm.test_dataloader()
+    dm.setup("fit")
+    assert dm.data_train is not None and dm.data_val is not None and dm.data_test is None
+    assert dm.train_dataloader() and dm.val_dataloader()
 
     batch = next(iter(dm.train_dataloader()))
     images = batch.pop("images")
