@@ -65,7 +65,6 @@ class CLIPDataModule(LightningDataModule):
 
     def train_dataloader(self) -> DataLoader:
         assert self.data_train is not None
-
         return DataLoader(
             dataset=self.data_train,
             batch_size=self.hparams.batch_size,

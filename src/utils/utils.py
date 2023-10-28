@@ -38,7 +38,7 @@ def task_wrapper(task_func: Callable) -> Callable:
         finally:
             log.info(f"Output dir: {cfg.paths.output_dir}")
             if find_spec("wandb"):
-                import wandb
+                import wandb  # pylint: disable=import-outside-toplevel
 
                 if wandb.run:
                     log.info("Closing wandb!")

@@ -20,6 +20,3 @@ trainer:
   max_steps: 100
   devices: 1
   detect_anomaly: true
-
-# data:
-#   num_workers: 0

@@ -1,34 +1,36 @@
 from functools import partial
-from random import choice
-from typing import Callable, Iterable, List, Optional, Tuple
+from typing import Callable, Iterable, List, Optional, Tuple, Union
 
-from torch import Tensor, cat
+from torch import LongTensor, Tensor, cat
 from transformers import BatchEncoding
 
 from src.types import Tokenizer
 
+TOKENIZER_KWARGS = {"padding": True, "truncation": True, "return_tensors": "pt", "return_token_type_ids": False}
+
 
 def collate_fn(
-    items: Iterable[Tuple[Optional[Tensor], List[str]]], tokenizer: Tokenizer, max_length: Optional[int]
+    items: Iterable[Tuple[Tensor, Union[str, List[str]], Optional[int]]],
+    tokenizer: Tokenizer,
+    max_length: Optional[int],
 ) -> BatchEncoding:
     batch_images: List[Tensor] = []
     batch_texts: List[str] = []
+    batch_labels: List[int] = []
 
-    for image, texts in items:
-        if image is None or not texts:
-            continue
+    for image, text, label in items:
         batch_images.append(image.unsqueeze(0))
-        batch_texts.append(choice(texts))
+        if isinstance(text, list) and not batch_texts:
+            batch_texts = text
+        elif isinstance(text, str):
+            batch_texts.append(text)
+        if label is not None:
+            batch_labels.append(label)
 
-    batch = tokenizer(
-        text=batch_texts,
-        padding=True,
-        truncation=True,
-        max_length=max_length,
-        return_tensors="pt",
-        return_token_type_ids=False,
-    )
-    batch["images"] = cat(batch_images, dim=0)
+    batch = tokenizer(text=batch_texts, max_length=max_length, **TOKENIZER_KWARGS)
+    batch["image"] = cat(batch_images, dim=0)
+    if batch_labels:
+        batch["label"] = LongTensor(batch_labels)
 
     return batch
 
@@ -40,7 +42,7 @@ def create_collate_fn(
 
 
 def collate_with_teacher_fn(
-    items: Iterable[Tuple[Optional[Tensor], List[str]]],
+    items: Iterable[Tuple[Tensor, Union[str, List[str]], Optional[int]]],
     tokenizer: Tokenizer,
     max_length: Optional[int],
     teacher_tokenizer: Tokenizer,
@@ -48,33 +50,23 @@ def collate_with_teacher_fn(
 ) -> BatchEncoding:
     batch_images: List[Tensor] = []
     batch_texts: List[str] = []
+    batch_labels: List[int] = []
 
-    for image, texts in items:
-        if image is None or not texts:
-            continue
+    for image, text, label in items:
         batch_images.append(image.unsqueeze(0))
-        batch_texts.append(choice(texts))
+        if isinstance(text, list) and not batch_texts:
+            batch_texts = text
+        elif isinstance(text, str):
+            batch_texts.append(text)
+        if label is not None:
+            batch_labels.append(label)
 
-    batch = tokenizer(
-        text=batch_texts,
-        padding=True,
-        truncation=True,
-        max_length=max_length,
-        return_tensors="pt",
-        return_token_type_ids=False,
-    )
-    teacher_batch = teacher_tokenizer(
-        text=batch_texts,
-        padding=True,
-        truncation=True,
-        max_length=teacher_max_length,
-        return_tensors="pt",
-        return_token_type_ids=False,
-    )
-    for key, value in teacher_batch.items():
+    batch = tokenizer(text=batch_texts, max_length=max_length, **TOKENIZER_KWARGS)
+    for key, value in teacher_tokenizer(text=batch_texts, max_length=teacher_max_length, **TOKENIZER_KWARGS).items():
         batch["teacher_" + key] = value
-
-    batch["images"] = cat(batch_images, dim=0)
+    batch["image"] = cat(batch_images, dim=0)
+    if batch_labels:
+        batch["label"] = LongTensor(batch_labels)
 
     return batch
 

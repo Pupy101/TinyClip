@@ -28,5 +28,4 @@ scheduler:
   total_steps: ${count_steps}
   pct_start: 0.1
 
-batch_size: ${batch_size}
-label_smoothing: null
+num_classes: ${batch_size}

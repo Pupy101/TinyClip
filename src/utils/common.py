@@ -4,8 +4,7 @@ from torch import nn
 
 
 def freeze_model(model: nn.Module, *, train_part: float = -1, full: bool = False) -> None:
-    if full:
-        assert train_part == -1
+    if full or train_part == 0:
         for param in model.parameters():
             param.requires_grad = False
     else:

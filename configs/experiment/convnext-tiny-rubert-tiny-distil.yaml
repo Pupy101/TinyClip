@@ -10,7 +10,6 @@ data:
   val_path: /home/sporkhun/CLIP/data/valid.tsv
   test_path: /home/sporkhun/CLIP/data/valid.tsv
   max_length: 512
-  num_workers: 8
   teacher_tokenizer: ${teacher_pretrained}
   teacher_max_length: 77
   mean: [0.48145466, 0.4578275, 0.40821073]
@@ -33,16 +32,15 @@ model:
     _target_: torch.nn.Linear
     in_features: ${embedding_dim}
     out_features: 768
-  text_train_part: 0.7
-  label_smoothing: 0.1
+  text_train_part: 0.8
 
 trainer:
   gradient_clip_val: 5.0
   accumulate_grad_batches: 8
   max_epochs: 60
 
-count_steps: 2_500
-batch_size: 600
+count_steps: 3_000
+batch_size: 700
 image_pretrained: facebook/convnext-tiny-224
 text_pretrained: cointegrated/rubert-tiny2
 teacher_pretrained: openai/clip-vit-large-patch14

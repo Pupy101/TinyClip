@@ -9,7 +9,7 @@ rich
 rootutils
 sh
 tensorboard
-torch>=2.0.0
+torch<2.1.0,>=2.0.0
 torchmetrics>=0.11.4
 torchvision>=0.15.0
 wandb

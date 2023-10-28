@@ -1,10 +1,9 @@
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 from lightning import LightningModule
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
-from torch import Tensor, arange, argmax, nn
-from torch.nn import functional as F
-from torchmetrics import MeanMetric, Metric
+from torch import Tensor, arange, argmax, long, nn
+from torchmetrics import Metric
 from torchmetrics.classification import MulticlassAccuracy, MulticlassF1Score
 from transformers import BatchEncoding
 
@@ -22,8 +21,7 @@ class CLIPModule(LightningModule):
         text_train_part: float,
         optimizer: Optimizer,  # pylint: disable=unused-argument
         scheduler: Optional[Scheduler],  # pylint: disable=unused-argument
-        label_smoothing: Optional[float],
-        batch_size: int,
+        num_classes: int,
     ) -> None:
         super().__init__()
 
@@ -34,97 +32,83 @@ class CLIPModule(LightningModule):
 
         self.clip = Clip(image_encoder=image_encoder, text_encoder=text_encoder)
 
-        self.criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing or 0.0)
+        self.ce_loss = nn.CrossEntropyLoss()
 
-        self.loss_train = MeanMetric()
-        self.loss_val = MeanMetric()
-        self.loss_test = MeanMetric()
+        self.acc_train = MulticlassAccuracy(num_classes=num_classes, average="weighted")
+        self.acc_val = MulticlassAccuracy(num_classes=num_classes, average="weighted")
+        self.acc_test = MulticlassAccuracy(num_classes=num_classes, average="weighted")
 
-        self.acc_train = MulticlassAccuracy(num_classes=batch_size, average="weighted")
-        self.acc_val = MulticlassAccuracy(num_classes=batch_size, average="weighted")
-        self.acc_test = MulticlassAccuracy(num_classes=batch_size, average="weighted")
+        self.f1_train = MulticlassF1Score(num_classes=num_classes, average="weighted")
+        self.f1_val = MulticlassF1Score(num_classes=num_classes, average="weighted")
+        self.f1_test = MulticlassF1Score(num_classes=num_classes, average="weighted")
 
-        self.f1_train = MulticlassF1Score(num_classes=batch_size, average="weighted")
-        self.f1_val = MulticlassF1Score(num_classes=batch_size, average="weighted")
-        self.f1_test = MulticlassF1Score(num_classes=batch_size, average="weighted")
+    def forward(self, batch: BatchEncoding) -> Dict[str, Tensor]:
+        tensors: Dict[str, Tensor] = {}
+        tensors["img_input"] = batch.pop("image")
+        tensors["txt_input"] = batch
+        img_emb = self.clip.normalize(self.clip.image_encoder(tensors["img_input"]).logits)
+        txt_emb = self.clip.normalize(self.clip.text_encoder(**tensors["txt_input"]).logits)
+        tensors.update({"img_emb": img_emb, "txt_emb": txt_emb})
+        img_logit, txt_logit = self.clip(image_embeddings=img_emb, text_embeddings=txt_emb)
+        tensors.update({"img_logit": img_logit, "txt_logit": txt_logit})
+        return tensors
 
-    def forward(self, batch: BatchEncoding) -> Tuple[Tensor, Tensor]:
-        images = batch.pop("images")
-        image_embeddings = self.clip.normalize(self.clip.image_encoder(images).logits)
-        text_embeddings = self.clip.normalize(self.clip.text_encoder(**batch).logits)
-        image_logits, text_logits = self.clip(image_embeddings=image_embeddings, text_embeddings=text_embeddings)
-        return image_logits, text_logits
-
-    def model_step(self, batch: BatchEncoding) -> Tuple[Tensor, Tensor, Tensor]:
-        image_logits, text_logits = self.forward(batch=batch)
-        labels = arange(image_logits.size(0), device=self.device)
-        loss = self.criterion(image_logits, labels) + self.criterion(text_logits, labels)
-        predict = argmax(image_logits, dim=-1)
-        return loss, predict, labels
+    def model_step(self, batch: BatchEncoding) -> Tuple[Dict[str, Tensor], Dict[str, Tensor]]:
+        tensors = self.forward(batch=batch)
+        if "label" in batch:
+            label = batch.pop("label")
+        else:
+            label = arange(tensors["img_logit"].size(0), dtype=long, device=self.device)
+        predict = argmax(tensors["img_logit"], dim=-1)
+        tensors.update({"label": label, "predict": predict})
+        img_loss = self.ce_loss(tensors["img_logit"], label)
+        txt_loss = self.ce_loss(tensors["txt_logit"], label)
+        losses = {"img_ce_loss": img_loss, "txt_ce_loss": txt_loss, "loss": img_loss + txt_loss}
+        return tensors, losses
 
     def on_train_start(self) -> None:
-        self.loss_val.reset()
         self.acc_val.reset()
         self.f1_val.reset()
 
     def compute_metric(
         self,
         prefix: str,
-        loss: Tensor,
-        predict: Tensor,
-        labels: Tensor,
-        loss_metric: Metric,
+        tensors: Dict[str, Tensor],
+        losses: Dict[str, Tensor],
         acc_metric: Metric,
         f1_metric: Metric,
     ) -> None:
-        loss_metric(loss)
-        acc = acc_metric(predict, labels)
-        f1 = f1_metric(predict, labels)
+        acc = acc_metric(tensors["predict"], tensors["label"])
+        f1 = f1_metric(tensors["predict"], tensors["label"])
 
-        self.log(prefix + "/loss", self.loss_train, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+        for key, value in losses.items():
+            if key == "loss":
+                self.log(prefix + f"/{key}", value.item(), on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+            else:
+                self.log(prefix + f"/{key}", value.item(), on_epoch=True, sync_dist=True)
         self.log(prefix + "/acc", acc, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log(prefix + "/f1", f1, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
 
     def training_step(self, batch: BatchEncoding, _: int) -> Tensor:
-        loss, predict, labels = self.model_step(batch)
-
+        tensors, losses = self.model_step(batch)
         self.compute_metric(
-            prefix="train",
-            loss=loss,
-            predict=predict,
-            labels=labels,
-            loss_metric=self.loss_train,
-            acc_metric=self.acc_train,
-            f1_metric=self.f1_train,
+            prefix="train", tensors=tensors, losses=losses, acc_metric=self.acc_train, f1_metric=self.f1_train
         )
+        return losses["loss"]
 
-        return loss
-
-    def validation_step(self, batch: BatchEncoding, _: int) -> None:
-        loss, predict, labels = self.model_step(batch)
-
+    def validation_step(self, batch: BatchEncoding, _: int) -> Tensor:
+        tensors, losses = self.model_step(batch)
         self.compute_metric(
-            prefix="val",
-            loss=loss,
-            predict=predict,
-            labels=labels,
-            loss_metric=self.loss_val,
-            acc_metric=self.acc_val,
-            f1_metric=self.f1_val,
+            prefix="val", tensors=tensors, losses=losses, acc_metric=self.acc_val, f1_metric=self.f1_val
         )
+        return losses["loss"]
 
-    def test_step(self, batch: BatchEncoding, _: int) -> None:
-        loss, predict, labels = self.model_step(batch)
-
+    def test_step(self, batch: BatchEncoding, _: int) -> Tensor:
+        tensors, losses = self.model_step(batch)
         self.compute_metric(
-            prefix="test",
-            loss=loss,
-            predict=predict,
-            labels=labels,
-            loss_metric=self.loss_test,
-            acc_metric=self.acc_test,
-            f1_metric=self.f1_test,
+            prefix="test", tensors=tensors, losses=losses, acc_metric=self.acc_test, f1_metric=self.f1_test
         )
+        return losses["loss"]
 
     def configure_optimizers(self) -> OptimizerLRSchedulerConfig:
         optimizer = self.hparams.optimizer(params=self.trainer.model.parameters())  # type: ignore
@@ -155,8 +139,7 @@ class DistilCLIPModule(CLIPModule):  # pylint: disable=too-many-ancestors
         text_train_part: float,
         optimizer: Optimizer,
         scheduler: Optional[Scheduler],
-        label_smoothing: Optional[float],
-        batch_size: int,
+        num_classes: int,
     ) -> None:
         super().__init__(
             image_encoder=image_encoder,
@@ -165,8 +148,7 @@ class DistilCLIPModule(CLIPModule):  # pylint: disable=too-many-ancestors
             text_train_part=text_train_part,
             optimizer=optimizer,
             scheduler=scheduler,
-            label_smoothing=label_smoothing,
-            batch_size=batch_size,
+            num_classes=num_classes,
         )
 
         self.teacher = Clip(image_encoder=teacher_image_encoder, text_encoder=teacher_text_encoder)
@@ -175,51 +157,38 @@ class DistilCLIPModule(CLIPModule):  # pylint: disable=too-many-ancestors
         self.image_proj = image_proj
         self.text_proj = text_proj
 
-        self.distil_criterion = nn.KLDivLoss(reduction="batchmean")
+        self.l1_loss = nn.L1Loss()
+        self.cos_loss = nn.CosineEmbeddingLoss(margin=0.25)
 
-    def forward(self, batch: BatchEncoding) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:  # type: ignore[override]
-        images = batch.pop("images")
-        teacher_batch = BatchEncoding()
+    def forward(self, batch: BatchEncoding) -> Dict[str, Tensor]:  # type: ignore[override]
+        txt_input = BatchEncoding()
         for key in sorted(batch.keys()):
             if key.startswith("teacher_"):
-                teacher_batch[key.replace("teacher_", "")] = batch.pop(key)
-        teacher_image_embeddings = self.teacher.normalize(self.teacher.image_encoder(images).pooler_output)
-        teacher_text_embeddings = self.teacher.normalize(self.teacher.text_encoder(**teacher_batch).pooler_output)
+                txt_input[key.replace("teacher_", "")] = batch.pop(key)
 
-        image_embeddings = self.clip.normalize(self.clip.image_encoder(images).logits)
-        text_embeddings = self.clip.normalize(self.clip.text_encoder(**batch).logits)
+        tensors = super().forward(batch=batch)
 
-        image_logits, text_logits = self.clip(image_embeddings=image_embeddings, text_embeddings=text_embeddings)
+        img_emb = self.teacher.normalize(self.teacher.image_encoder(tensors["img_input"]).pooler_output)
+        txt_emb = self.teacher.normalize(self.teacher.text_encoder(**txt_input).pooler_output)
+        tensors.update({"teacher_txt_input": txt_input, "teacher_img_emb": img_emb, "teacher_txt_emb": txt_emb})
 
-        return (
-            image_embeddings,
-            text_embeddings,
-            teacher_image_embeddings,
-            teacher_text_embeddings,
-            image_logits,
-            text_logits,
-        )
+        return tensors
 
-    def model_step(self, batch: BatchEncoding) -> Tuple[Tensor, Tensor, Tensor]:
-        (
-            image_embeddings,
-            text_embeddings,
-            teacher_image_embeddings,
-            teacher_text_embeddings,
-            image_logits,
-            text_logits,
-        ) = self.forward(batch=batch)
+    def model_step(self, batch: BatchEncoding) -> Tuple[Dict[str, Tensor], Dict[str, Tensor]]:
+        tensors, losses = super().model_step(batch=batch)
 
-        labels = arange(image_logits.size(0), device=self.device)
-        loss = self.criterion(image_logits, labels) + self.criterion(text_logits, labels)
+        img_proj_emb = self.clip.normalize(self.image_proj(tensors["img_emb"]))
+        txt_proj_emb = self.clip.normalize(self.text_proj(tensors["txt_emb"]))
+        tensors.update({"img_proj_emb": img_proj_emb, "txt_proj_emb": txt_proj_emb})
 
-        image_distrib = F.log_softmax(self.image_proj(image_embeddings), dim=1)
-        image_target = F.softmax(teacher_image_embeddings, dim=1)
-        text_distrib = F.log_softmax(self.text_proj(text_embeddings), dim=1)
-        text_target = F.softmax(teacher_text_embeddings, dim=1)
+        img_l1_loss = 5 * self.l1_loss(img_proj_emb, tensors["teacher_img_emb"])
+        txt_l1_loss = 5 * self.l1_loss(txt_proj_emb, tensors["teacher_txt_emb"])
+        losses["loss"] += img_l1_loss + txt_l1_loss
+        losses.update({"img_l1_loss": img_l1_loss, "txt_l1_loss": txt_l1_loss})
 
-        loss += 10 * self.distil_criterion(image_distrib, image_target)
-        loss += 10 * self.distil_criterion(text_distrib, text_target)
+        img_cos_loss = 5 * self.cos_loss(img_proj_emb, tensors["teacher_img_emb"], tensors["label"])
+        txt_cos_loss = 5 * self.cos_loss(txt_proj_emb, tensors["teacher_txt_emb"], tensors["label"])
+        losses["loss"] += img_cos_loss + txt_cos_loss
+        losses.update({"img_cos_loss": img_cos_loss, "txt_cos_loss": txt_cos_loss})
 
-        predict = argmax(image_logits, dim=-1)
-        return loss, predict, labels
+        return tensors, losses

@@ -6,7 +6,7 @@ test_path: ???
 tokenizer: ${text_pretrained}
 max_length: null
 batch_size: ${batch_size}
-num_workers: ???
+num_workers: 4
 
 mean: [0.485, 0.456, 0.406]
 std: [0.229, 0.224, 0.225]
