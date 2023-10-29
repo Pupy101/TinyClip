@@ -1,4 +1,4 @@
-_target_: src.models.module.CLIPModule
+_target_: src.models.CLIPModule
 
 image_encoder:
   _target_: transformers.AutoModelForImageClassification.from_pretrained
@@ -19,7 +19,7 @@ optimizer:
   _target_: torch.optim.AdamW
   _partial_: true
   lr: 1.0e-3
-  weight_decay: 5.0e-4
+  weight_decay: 1.0e-3
 
 scheduler:
   _target_: torch.optim.lr_scheduler.OneCycleLR
@@ -28,4 +28,4 @@ scheduler:
   total_steps: ${count_steps}
   pct_start: 0.1
 
-num_classes: ${batch_size}
+threshold: 0.75

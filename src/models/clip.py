@@ -3,13 +3,10 @@ from typing import Tuple
 from numpy import log
 from torch import Tensor, nn, ones
 from torch.nn import functional as F
-from transformers import AutoModelForImageClassification, AutoModelForSequenceClassification
 
 
 class Clip(nn.Module):
-    def __init__(
-        self, image_encoder: AutoModelForImageClassification, text_encoder: AutoModelForSequenceClassification
-    ) -> None:
+    def __init__(self, image_encoder: nn.Module, text_encoder: nn.Module) -> None:
         super().__init__()
         self.image_encoder = image_encoder
         self.text_encoder = text_encoder

@@ -1,71 +1,54 @@
-from random import choice
+import abc
 from typing import List, Tuple
 
-import albumentations as A
 from pandas import DataFrame
-from torch import Tensor
+from PIL import Image
 from torch.utils.data import Dataset
-from utilities.data import load_image
-
-from src.utils import RankedLogger
-
-log = RankedLogger(__name__, is_rank_zero_only=True)
 
 
-class BaseImageDataset(Dataset):  # pylint: disable=abstract-method
-    def __init__(self, dataframe: DataFrame, transform: A.Compose) -> None:
-        columns = list(dataframe.columns)
-        assert "image" in columns, "Not found column 'image' in dataframe"
-
-        self.df = dataframe
-        self.transform = transform
+class BaseImageDataset(Dataset):
+    def __init__(self, data: DataFrame) -> None:
+        columns = list(data.columns)
+        assert "image" in columns, "Not found column 'image' in data"
+        self.data = data
         self.img_idx = columns.index("image")
 
-    def prepare_image(self, img: str) -> Tensor:
-        image = load_image(img)
-        image = self.transform(image=image)["image"]
-        return image  # type: ignore
+    def get_image(self, index: int) -> Image.Image:
+        image_path = self.data.iloc[index, self.img_idx]
+        return Image.open(image_path)
 
     def __len__(self) -> int:
-        return self.df.shape[0]
+        return self.data.shape[0]
+
+    @abc.abstractmethod
+    def __getitem__(self, index: int):
+        raise NotImplementedError
 
 
 class CLIPDataset(BaseImageDataset):
-    def __init__(self, dataframe: DataFrame, transform: A.Compose) -> None:
-        super().__init__(dataframe=dataframe, transform=transform)
+    def __init__(self, data: DataFrame) -> None:
+        super().__init__(data=data)
+        columns = list(data.columns)
+        assert "text" in columns, "Not found column 'text' in data"
+        self.text_idx = columns.index("text")
 
-        columns = list(dataframe.columns)
-        assert "ru_text" in columns, "Not found column 'ru_text' in dataframe"
-        assert "en_text" in columns, "Not found column 'en_text' in dataframe"
+    def get_text(self, index: int) -> str:
+        return self.data.iloc[index, self.text_idx]
 
-        self.ru_idx = columns.index("ru_text")
-        self.en_idx = columns.index("en_text")
-
-    def __getitem__(self, idx: int) -> Tuple[Tensor, str, None]:
-        img = self.prepare_image(self.df.iloc[idx, self.img_idx])
-
-        texts: List[str] = []
-        ru_text = self.df.iloc[idx, self.ru_idx]
-        if isinstance(ru_text, str):
-            texts.append(ru_text)
-        en_text = self.df.iloc[idx, self.en_idx]
-        if isinstance(en_text, str):
-            texts.append(en_text)
-
-        return img, choice(texts), None
+    def __getitem__(self, index: int) -> Tuple[Image.Image, str]:
+        return self.get_image(index), self.get_text(index)
 
 
 class EvalCLIPDataset(BaseImageDataset):
-    def __init__(self, dataframe: DataFrame, transform: A.Compose, labels: List[str]) -> None:
-        super().__init__(dataframe=dataframe, transform=transform)
-
-        columns = list(dataframe.columns)
+    def __init__(self, data: DataFrame, labels: List[str]) -> None:
+        super().__init__(data=data)
+        columns = list(data.columns)
         assert "label" in columns, "Not found column 'label' in dataframe"
-
-        self.labels = labels
         self.label_idx = columns.index("label")
+        self.labels = labels
 
-    def __getitem__(self, idx: int) -> Tuple[Tensor, List[str], int]:
-        img = self.prepare_image(self.df.iloc[idx, self.img_idx])
+    def get_label(self, index: int) -> int:
+        return self.data.iloc[index, self.label_idx]
 
-        return img, self.labels, self.df.iloc[idx, self.label_idx]
+    def __getitem__(self, index: int) -> Tuple[Image.Image, List[str], int]:
+        return self.get_image(index), self.labels, self.get_label(index)

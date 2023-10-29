@@ -6,9 +6,9 @@ defaults:
   - override /trainer: ddp
 
 data:
-  train_path: /home/sporkhun/CLIP/data/train.tsv
-  val_path: /home/sporkhun/CLIP/data/valid.tsv
-  test_path: /home/sporkhun/CLIP/data/valid.tsv
+  path_train: /data/sporkhun/TinyClip/data/unsplash_v2.tsv
+  path_val: /data/sporkhun/TinyClip/data/unsplash_v2.tsv
+  path_test: /data/sporkhun/TinyClip/data/unsplash_v2.tsv
   max_length: 512
 
 model:
@@ -16,7 +16,6 @@ model:
   text_train_part: 0.8
 
 trainer:
-  gradient_clip_val: 5.0
   accumulate_grad_batches: 8
   max_epochs: 60
 

@@ -1,0 +1,8 @@
+defaults:
+  - default
+
+_target_: src.data.DistilCLIPDataModule
+
+teacher_processor: ${teacher_pretrained}
+teacher_tokenizer: ${teacher_pretrained}
+teacher_max_length: ???

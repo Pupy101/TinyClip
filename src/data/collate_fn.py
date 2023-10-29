@@ -1,86 +1,88 @@
 from functools import partial
-from typing import Callable, Iterable, List, Optional, Tuple, Union
+from typing import Callable, Iterable, List, Optional, Tuple
 
-from torch import LongTensor, Tensor, cat
+from PIL.Image import Image
+from torchvision.transforms import v2
 from transformers import BatchEncoding
 
-from src.types import Tokenizer
+from src.types import Processor, Tokenizer
 
 TOKENIZER_KWARGS = {"padding": True, "truncation": True, "return_tensors": "pt", "return_token_type_ids": False}
 
 
+def create_transform() -> v2.Compose:
+    return v2.Compose([v2.RandomHorizontalFlip(p=0.5), v2.RandomAutocontrast(p=0.3), v2.RandomEqualize(p=0.3)])
+
+
 def collate_fn(
-    items: Iterable[Tuple[Tensor, Union[str, List[str]], Optional[int]]],
+    items: Iterable[Tuple[Image, str]],
+    processor: Processor,
     tokenizer: Tokenizer,
     max_length: Optional[int],
+    transform: Optional[v2.Compose],
 ) -> BatchEncoding:
-    batch_images: List[Tensor] = []
-    batch_texts: List[str] = []
-    batch_labels: List[int] = []
-
-    for image, text, label in items:
-        batch_images.append(image.unsqueeze(0))
-        if isinstance(text, list) and not batch_texts:
-            batch_texts = text
-        elif isinstance(text, str):
-            batch_texts.append(text)
-        if label is not None:
-            batch_labels.append(label)
-
-    batch = tokenizer(text=batch_texts, max_length=max_length, **TOKENIZER_KWARGS)
-    batch["image"] = cat(batch_images, dim=0)
-    if batch_labels:
-        batch["label"] = LongTensor(batch_labels)
-
+    images: List[Image] = []
+    texts: List[str] = []
+    for image, text in items:
+        images.append(image if transform is None else transform(image))
+        texts.append(text)
+    batch = tokenizer(text=texts, max_length=max_length, **TOKENIZER_KWARGS)
+    batch.update(processor(images=images, return_tensors="pt"))
     return batch
 
 
 def create_collate_fn(
-    tokenizer: Tokenizer, max_length: Optional[int] = None
-) -> Callable[[Iterable[Tuple[Optional[Tensor], List[str]]]], BatchEncoding]:
-    return partial(collate_fn, tokenizer=tokenizer, max_length=max_length)
-
-
-def collate_with_teacher_fn(
-    items: Iterable[Tuple[Tensor, Union[str, List[str]], Optional[int]]],
+    processor: Processor,
     tokenizer: Tokenizer,
     max_length: Optional[int],
+    transform: Optional[v2.Compose],
+) -> Callable[[Iterable[Tuple[Image, str]]], BatchEncoding]:
+    return partial(collate_fn, processor=processor, tokenizer=tokenizer, max_length=max_length, transform=transform)
+
+
+def collate_distil_fn(
+    items: Iterable[Tuple[Image, str]],
+    processor: Processor,
+    tokenizer: Tokenizer,
+    max_length: Optional[int],
+    teacher_processor: Processor,
     teacher_tokenizer: Tokenizer,
     teacher_max_length: Optional[int],
+    transform: Optional[v2.Compose],
 ) -> BatchEncoding:
-    batch_images: List[Tensor] = []
-    batch_texts: List[str] = []
-    batch_labels: List[int] = []
+    images: List[Image] = []
+    texts: List[str] = []
+    for image, text in items:
+        images.append(image if transform is None else transform(image))
+        texts.append(text)
 
-    for image, text, label in items:
-        batch_images.append(image.unsqueeze(0))
-        if isinstance(text, list) and not batch_texts:
-            batch_texts = text
-        elif isinstance(text, str):
-            batch_texts.append(text)
-        if label is not None:
-            batch_labels.append(label)
+    batch = tokenizer(text=texts, max_length=max_length, **TOKENIZER_KWARGS)
+    batch.update(processor(images=images, return_tensors="pt"))
 
-    batch = tokenizer(text=batch_texts, max_length=max_length, **TOKENIZER_KWARGS)
-    for key, value in teacher_tokenizer(text=batch_texts, max_length=teacher_max_length, **TOKENIZER_KWARGS).items():
+    teacher_batch = teacher_tokenizer(text=texts, max_length=teacher_max_length, **TOKENIZER_KWARGS)
+    teacher_batch.update(teacher_processor(images=images, return_tensors="pt"))
+
+    for key, value in teacher_batch.items():
         batch["teacher_" + key] = value
-    batch["image"] = cat(batch_images, dim=0)
-    if batch_labels:
-        batch["label"] = LongTensor(batch_labels)
-
     return batch
 
 
-def create_collate_with_teacher_fn(
+def create_distil_collate_fn(
+    processor: Processor,
     tokenizer: Tokenizer,
+    max_length: Optional[int],
+    teacher_processor: Processor,
     teacher_tokenizer: Tokenizer,
-    max_length: Optional[int] = None,
-    teacher_max_length: Optional[int] = None,
-) -> Callable[[Iterable[Tuple[Optional[Tensor], List[str]]]], BatchEncoding]:
+    teacher_max_length: Optional[int],
+    transform: Optional[v2.Compose],
+) -> Callable[[Iterable[Tuple[Image, str]]], BatchEncoding]:
     return partial(
-        collate_with_teacher_fn,
+        collate_distil_fn,
+        processor=processor,
         tokenizer=tokenizer,
         max_length=max_length,
+        teacher_processor=teacher_processor,
         teacher_tokenizer=teacher_tokenizer,
         teacher_max_length=teacher_max_length,
+        transform=transform,
     )

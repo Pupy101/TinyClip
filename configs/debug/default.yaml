@@ -6,8 +6,8 @@ callbacks: null
 logger: null
 
 extras:
-  ignore_warnings: False
-  enforce_tags: False
+  ignore_warnings: false
+  enforce_tags: false
 
 hydra:
   job_logging:
