@@ -7,6 +7,7 @@ from torch import Tensor, nn
 from torchmetrics import Metric
 from torchmetrics.classification import BinaryAccuracy, BinaryF1Score
 from transformers import BatchEncoding, CLIPModel
+from transformers.models.clip.modeling_clip import CLIPOutput
 
 from src.models.clip import Clip
 from src.types import Optimizer, Scheduler
@@ -16,22 +17,23 @@ from src.utils import freeze_model
 class CLIPModule(LightningModule):
     def __init__(
         self,
-        image_encoder: nn.Module,
-        image_train_part: float,
-        text_encoder: nn.Module,
-        text_train_part: float,
+        img: nn.Module,
+        img_part: float,
+        txt: nn.Module,
+        txt_part: float,
         optimizer: Optimizer,  # pylint: disable=unused-argument
         scheduler: Optional[Scheduler],  # pylint: disable=unused-argument
-        threshold: float,  # pylint: disable=unused-argument
+        threshold: Optional[float],  # pylint: disable=unused-argument
+        bce_coeff: float,  # pylint: disable=unused-argument
     ) -> None:
         super().__init__()
 
-        self.save_hyperparameters("optimizer", "scheduler", "threshold", logger=False)
+        self.save_hyperparameters("optimizer", "scheduler", "threshold", "bce_coeff", logger=False)
 
-        freeze_model(model=image_encoder, train_part=image_train_part)
-        freeze_model(model=text_encoder, train_part=text_train_part)
+        freeze_model(model=img, train_part=img_part)
+        freeze_model(model=txt, train_part=txt_part)
 
-        self.clip = Clip(image_encoder=image_encoder, text_encoder=text_encoder)
+        self.clip = Clip(img=img, txt=txt)
 
         self.ce_loss = nn.CrossEntropyLoss()
         self.bce_loss = nn.BCEWithLogitsLoss()
@@ -49,11 +51,11 @@ class CLIPModule(LightningModule):
         tensors["img_input"] = batch.pop("pixel_values")
         tensors["txt_input"] = batch
 
-        img_emb = self.clip.normalize(self.clip.image_encoder(tensors["img_input"]).logits)
-        txt_emb = self.clip.normalize(self.clip.text_encoder(**tensors["txt_input"]).logits)  # type: ignore
+        img_emb = self.clip.normalize(self.clip.img(tensors["img_input"]).logits)
+        txt_emb = self.clip.normalize(self.clip.txt(**tensors["txt_input"]).logits)  # type: ignore
         tensors.update({"img_emb": img_emb, "txt_emb": txt_emb})
 
-        img_logit, txt_logit = self.clip(image_embeddings=img_emb, text_embeddings=txt_emb)
+        img_logit, txt_logit = self.clip(img=img_emb, txt=txt_emb)
         tensors.update({"img_logit": img_logit, "txt_logit": txt_logit})
 
         return tensors
@@ -61,24 +63,27 @@ class CLIPModule(LightningModule):
     def model_step(self, batch: BatchEncoding) -> Tuple[Dict[str, Tensor], Dict[str, Tensor]]:
         tensors = self.forward(batch=batch)
 
-        if "label" in batch:
-            label = batch.pop("label")
+        if "label_bce" not in tensors:
+            label_bce = torch.diag(torch.ones(tensors["img_logit"].size(0), device=self.device))
+            if self.hparams.threshold is not None:
+                txt_sim = tensors["txt_emb"] @ tensors["txt_emb"].T
+                label_bce[txt_sim > self.hparams.threshold] = 1.0
+            tensors.update({"label_bce": label_bce})
         else:
-            label = torch.diag(torch.ones(tensors["img_logit"].size(0), device=self.device))
-            txt_sim = tensors["txt_emb"] @ tensors["txt_emb"].T
-            label[txt_sim > self.hparams.threshold] = 1.0
+            label_bce = tensors["label_bce"]
 
         predict = torch.sigmoid(tensors["img_logit"])
-        tensors.update({"label": label, "predict": predict})
+        tensors.update({"predict": predict})
 
-        img_bce_loss = self.bce_loss(tensors["img_logit"], label)
-        txt_bce_loss = self.bce_loss(tensors["txt_logit"], label)
+        img_bce_loss = self.hparams.bce_coeff * self.bce_loss(tensors["img_logit"], label_bce)
+        txt_bce_loss = self.hparams.bce_coeff * self.bce_loss(tensors["txt_logit"], label_bce)
         losses = {"img_bce_loss": img_bce_loss, "txt_bce_loss": txt_bce_loss, "loss": img_bce_loss + txt_bce_loss}
 
         label_ce = torch.arange(tensors["img_logit"].size(0), device=self.device, dtype=torch.long)
         img_ce_loss = self.ce_loss(tensors["img_logit"], label_ce)
         txt_ce_loss = self.ce_loss(tensors["txt_logit"], label_ce)
         losses["loss"] += img_ce_loss + txt_ce_loss
+        tensors.update({"label_ce": label_ce})
         losses.update({"img_ce_loss": img_ce_loss, "txt_ce_loss": txt_ce_loss})
 
         return tensors, losses
@@ -90,8 +95,8 @@ class CLIPModule(LightningModule):
     def compute_metric(
         self, prefix: str, tensors: Dict[str, Tensor], losses: Dict[str, Tensor], acc_metric: Metric, f1_metric: Metric
     ) -> None:
-        acc = acc_metric(tensors["predict"].flatten(), tensors["label"].flatten())
-        f1 = f1_metric(tensors["predict"].flatten(), tensors["label"].flatten())
+        acc = acc_metric(tensors["predict"].flatten(), tensors["label_bce"].flatten())
+        f1 = f1_metric(tensors["predict"].flatten(), tensors["label_bce"].flatten())
 
         for key, value in losses.items():
             if key == "loss":
@@ -128,12 +133,7 @@ class CLIPModule(LightningModule):
             scheduler = self.hparams.scheduler(optimizer=optimizer)  # type: ignore[attr-defined]
             return {
                 "optimizer": optimizer,
-                "lr_scheduler": {
-                    "scheduler": scheduler,
-                    "monitor": "val/loss",
-                    "interval": "step",
-                    "frequency": 1,
-                },
+                "lr_scheduler": {"scheduler": scheduler, "monitor": "val/loss", "interval": "step", "frequency": 1},
             }
         return {"optimizer": optimizer}
 
@@ -141,75 +141,79 @@ class CLIPModule(LightningModule):
 class DistilCLIPModule(CLIPModule):  # pylint: disable=too-many-ancestors
     def __init__(
         self,
-        image_encoder: nn.Module,
-        image_proj: nn.Module,
-        image_train_part: float,
-        text_encoder: nn.Module,
-        text_proj: nn.Module,
-        text_train_part: float,
+        img: nn.Module,
+        img_proj: nn.Module,
+        img_part: float,
+        txt: nn.Module,
+        txt_proj: nn.Module,
+        txt_part: float,
         teacher: CLIPModel,  # pylint: disable=unused-argument
         optimizer: Optimizer,
         scheduler: Optional[Scheduler],
         threshold: float,
+        bce_coeff: float,
+        l1_coeff: float,  # pylint: disable=unused-argument
+        cos_coeff: float,  # pylint: disable=unused-argument
     ) -> None:
         super().__init__(
-            image_encoder=image_encoder,
-            image_train_part=image_train_part,
-            text_encoder=text_encoder,
-            text_train_part=text_train_part,
+            img=img,
+            img_part=img_part,
+            txt=txt,
+            txt_part=txt_part,
             optimizer=optimizer,
             scheduler=scheduler,
             threshold=threshold,
+            bce_coeff=bce_coeff,
         )
+        self.save_hyperparameters("l1_coeff", "cos_coeff", logger=False)
 
         self.teacher = teacher
+        self.teacher.eval()
         freeze_model(self.teacher, full=True)
 
-        self.image_proj = image_proj
-        self.text_proj = text_proj
+        self.img_proj = img_proj
+        self.txt_proj = txt_proj
 
         self.l1_loss = nn.L1Loss()
         self.cos_loss = nn.CosineEmbeddingLoss(margin=0.1)
 
     def forward(self, batch: BatchEncoding) -> Dict[str, Tensor]:  # type: ignore[override]
-        teacher_input = BatchEncoding()
+        inputs = BatchEncoding()
         for key in sorted(batch.keys()):
-            if key.startswith("teacher_"):
-                teacher_input[key.replace("teacher_", "")] = batch.pop(key)
+            if key.startswith("tchr_"):
+                inputs[key.replace("tchr_", "")] = batch.pop(key)
 
         tensors = super().forward(batch=batch)
-        teacher_output = self.teacher(**teacher_input)
+        out: CLIPOutput = self.teacher(**inputs)
 
-        label = torch.diag(torch.ones(teacher_output.text_embeds.size(0), device=self.device))
-        txt_sim = teacher_output.text_embeds @ teacher_output.text_embeds.T
-        label[txt_sim > self.hparams.threshold] = 1.0
-        batch.update({"label": label})
+        label_bce = torch.diag(torch.ones(out.text_embeds.size(0), device=self.device))
+        if self.hparams.threshold is not None:
+            txt_sim = out.text_embeds @ out.text_embeds.T
+            label_bce[txt_sim > self.hparams.threshold] = 1.0
+        batch.update({"label_bce": label_bce})
 
-        tensors.update(
-            {
-                "teacher_txt_input": teacher_input,
-                "teacher_img_emb": teacher_output.image_embeds,
-                "teacher_txt_emb": teacher_output.text_embeds,
-            }
-        )
+        tensors.update({"tchr_txt_input": inputs, "tchr_img_emb": out.image_embeds, "tchr_txt_emb": out.text_embeds})
 
         return tensors
 
     def model_step(self, batch: BatchEncoding) -> Tuple[Dict[str, Tensor], Dict[str, Tensor]]:
         tensors, losses = super().model_step(batch=batch)
 
-        img_proj_emb = self.clip.normalize(self.image_proj(tensors["img_emb"]))
-        txt_proj_emb = self.clip.normalize(self.text_proj(tensors["txt_emb"]))
+        img_proj_emb = self.clip.normalize(self.img_proj(tensors["img_emb"]))
+        txt_proj_emb = self.clip.normalize(self.txt_proj(tensors["txt_emb"]))
         tensors.update({"img_proj_emb": img_proj_emb, "txt_proj_emb": txt_proj_emb})
 
-        img_l1_loss = self.l1_loss(img_proj_emb, tensors["teacher_img_emb"])
-        txt_l1_loss = self.l1_loss(txt_proj_emb, tensors["teacher_txt_emb"])
+        img_l1_loss = self.hparams.l1_coeff * self.l1_loss(img_proj_emb, tensors["tchr_img_emb"])
+        txt_l1_loss = self.hparams.l1_coeff * self.l1_loss(txt_proj_emb, tensors["tchr_txt_emb"])
         losses["loss"] += img_l1_loss + txt_l1_loss
         losses.update({"img_l1_loss": img_l1_loss, "txt_l1_loss": txt_l1_loss})
 
-        label = torch.arange(img_proj_emb.size(0), device=self.device)
-        img_cos_loss = self.cos_loss(img_proj_emb, tensors["teacher_img_emb"], label)
-        txt_cos_loss = self.cos_loss(txt_proj_emb, tensors["teacher_txt_emb"], label)
+        img_cos_loss = self.hparams.cos_coeff * self.cos_loss(
+            img_proj_emb, tensors["tchr_img_emb"], tensors["label_ce"]
+        )
+        txt_cos_loss = self.hparams.cos_coeff * self.cos_loss(
+            txt_proj_emb, tensors["tchr_txt_emb"], tensors["label_ce"]
+        )
         losses["loss"] += img_cos_loss + txt_cos_loss
         losses.update({"img_cos_loss": img_cos_loss, "txt_cos_loss": txt_cos_loss})
 

@@ -6,7 +6,7 @@ from PIL.Image import Image
 from torch.utils.data import DataLoader
 from transformers import AutoImageProcessor, AutoTokenizer, BatchEncoding
 
-from src.data.collate_fn import create_collate_fn, create_distil_collate_fn, create_transform
+from src.data.common import create_collate_fn, create_distil_collate_fn, create_transform
 from src.data.dataset import CLIPDataset
 
 
@@ -36,19 +36,16 @@ class CLIPDataModule(LightningDataModule):
     def setup(self, stage: str) -> None:
         if stage == "fit" and self.data_train is None:
             df_train = pd.read_csv(self.hparams.path_train, sep="\t")
-            self.data_train = CLIPDataset(df_train)
+            self.data_train = CLIPDataset(df_train, transform=create_transform(train=False))
         if stage in {"fit", "validate"} and self.data_val is None:
             df_val = pd.read_csv(self.hparams.path_val, sep="\t")
-            self.data_val = CLIPDataset(df_val)
+            self.data_val = CLIPDataset(df_val, transform=create_transform())
         if stage == "test" and self.data_test is None:
             df_test = pd.read_csv(self.hparams.path_test, sep="\t")
             self.data_test = CLIPDataset(df_test)
 
-    def create_collate(self, is_train: bool = False) -> Callable[[Iterable[Tuple[Image, str]]], BatchEncoding]:
-        transform = create_transform() if is_train else None
-        return create_collate_fn(
-            processor=self.processor, tokenizer=self.tokenizer, max_length=self.hparams.max_length, transform=transform
-        )
+    def create_collate(self) -> Callable[[Iterable[Tuple[Image, str]]], BatchEncoding]:
+        return create_collate_fn(processor=self.processor, tokenizer=self.tokenizer, max_length=self.hparams.max_length)
 
     def train_dataloader(self) -> DataLoader:
         assert self.data_train is not None
@@ -57,7 +54,7 @@ class CLIPDataModule(LightningDataModule):
             batch_size=self.hparams.batch_size,
             shuffle=True,
             num_workers=self.hparams.num_workers,
-            collate_fn=self.create_collate(is_train=True),
+            collate_fn=self.create_collate(),
         )
 
     def val_dataloader(self) -> DataLoader:
@@ -112,8 +109,7 @@ class DistilCLIPDataModule(CLIPDataModule):
         self.teacher_processor = AutoImageProcessor.from_pretrained(teacher_processor)
         self.teacher_tokenizer = AutoTokenizer.from_pretrained(teacher_tokenizer)
 
-    def create_collate(self, is_train: bool = False) -> Callable[[Iterable[Tuple[Image, str]]], BatchEncoding]:
-        transform = create_transform() if is_train else None
+    def create_collate(self) -> Callable[[Iterable[Tuple[Image, str]]], BatchEncoding]:
         return create_distil_collate_fn(
             processor=self.processor,
             tokenizer=self.tokenizer,
@@ -121,5 +117,4 @@ class DistilCLIPDataModule(CLIPDataModule):
             teacher_processor=self.teacher_processor,
             teacher_tokenizer=self.teacher_tokenizer,
             teacher_max_length=self.hparams.teacher_max_length,
-            transform=transform,
         )

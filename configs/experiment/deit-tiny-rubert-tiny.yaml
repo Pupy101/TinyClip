@@ -3,20 +3,20 @@
 defaults:
   - override /data: default
   - override /model: default
-  - override /trainer: gpu
+  - override /trainer: ddp
 
 data:
-  path_train: /data/sporkhun/TinyClip/data/unsplash_v2.tsv
-  path_val: /data/sporkhun/TinyClip/data/unsplash_v2.tsv
-  path_test: /data/sporkhun/TinyClip/data/unsplash_v2.tsv
+  path_train: /data/sporkhun/TinyClip/data/train_v3.tsv
+  path_val: /data/sporkhun/TinyClip/data/valid_v3.tsv
+  path_test: /data/sporkhun/TinyClip/data/valid_v3.tsv
   max_length: 512
 
 model:
-  image_train_part: 1.0
-  text_train_part: 0.8
+  img_part: 1.0
+  txt_part: 0.8
 
 trainer:
-  accumulate_grad_batches: 8
+  accumulate_grad_batches: 2
   max_epochs: 60
 
 count_steps: 3_000

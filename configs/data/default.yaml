@@ -7,4 +7,4 @@ processor: ${image_pretrained}
 tokenizer: ${text_pretrained}
 max_length: null
 batch_size: ${batch_size}
-num_workers: 8
+num_workers: 16

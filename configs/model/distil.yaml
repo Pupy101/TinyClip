@@ -3,14 +3,17 @@ defaults:
 
 _target_: src.models.DistilCLIPModule
 
-image_proj:
+img_proj:
   _target_: torch.nn.Linear
   in_features: ${embedding_dim}
   out_features: ${teacher_embedding_dim}
-text_proj:
+txt_proj:
   _target_: torch.nn.Linear
   in_features: ${embedding_dim}
   out_features: ${teacher_embedding_dim}
 teacher:
   _target_: transformers.CLIPModel.from_pretrained
   pretrained_model_name_or_path: ${teacher_pretrained}
+
+l1_coeff: 5.0
+cos_coeff: 5.0

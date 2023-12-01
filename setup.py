@@ -23,10 +23,5 @@ setup(
     url="https://github.com/Pupy101/TinyClip",
     install_requires=find_requirements(),
     packages=find_packages(),
-    entry_points={
-        "console_scripts": [
-            "train_command = src.train:main",
-            "eval_command = src.eval:main",
-        ]
-    },
+    entry_points={"console_scripts": ["train_command = src.train:main", "eval_command = src.eval:main"]},
 )

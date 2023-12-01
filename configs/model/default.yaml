@@ -1,24 +1,24 @@
 _target_: src.models.CLIPModule
 
-image_encoder:
+img:
   _target_: transformers.AutoModelForImageClassification.from_pretrained
   pretrained_model_name_or_path: ${image_pretrained}
   num_labels: ${embedding_dim}
   ignore_mismatched_sizes: true
 
-image_train_part: ???
+img_part: ???
 
-text_encoder:
+txt:
   _target_: transformers.AutoModelForSequenceClassification.from_pretrained
   pretrained_model_name_or_path: ${text_pretrained}
   num_labels: ${embedding_dim}
 
-text_train_part: ???
+txt_part: ???
 
 optimizer:
   _target_: torch.optim.AdamW
   _partial_: true
-  lr: 1.0e-3
+  lr: 5.0e-4
   weight_decay: 1.0e-3
 
 scheduler:
@@ -28,4 +28,6 @@ scheduler:
   total_steps: ${count_steps}
   pct_start: 0.1
 
-threshold: 0.75
+threshold: null
+
+bce_coeff: 4.0
