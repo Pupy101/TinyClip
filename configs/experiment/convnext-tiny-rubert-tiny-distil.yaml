@@ -30,6 +30,6 @@ teacher_embedding_dim: 768
 
 seed: 0xFEED
 
-tags: ["convext-tiny", "rubert-tiny"]
+tags: ["convnext-tiny", "rubert-tiny"]
 
-task_name: "train-convext-rubert-distil"
+task_name: "train-convnext-rubert-distil"

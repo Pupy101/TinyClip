@@ -1,8 +1,8 @@
 # @package _global_
 
 defaults:
-  - override /data: default
-  - override /model: default
+  - override /data: distil
+  - override /model: distil
   - override /trainer: ddp
 
 data:
@@ -10,6 +10,7 @@ data:
   path_val: /data/sporkhun/TinyClip/data/valid_v3.tsv
   path_test: /data/sporkhun/TinyClip/data/valid_v3.tsv
   max_length: 512
+  teacher_max_length: 77
 
 model:
   img_part: 1.0
@@ -20,13 +21,15 @@ trainer:
   max_epochs: 60
 
 count_steps: 3_000
-batch_size: 1_000
-image_pretrained: apple/mobilevit-xx-small # apple/mobilevit-x-small
+batch_size: 600
+image_pretrained: microsoft/focalnet-tiny # microsoft/focalnet-small-lrf
 text_pretrained: cointegrated/rubert-tiny2
 embedding_dim: 128
+teacher_pretrained: openai/clip-vit-large-patch14
+teacher_embedding_dim: 768
 
 seed: 0xFEED
 
-tags: ["mobilevit-xx-small", "rubert-tiny"]
+tags: ["focalnet-tiny", "rubert-tiny"]
 
-task_name: "train-mobilevit-rubert"
+task_name: "train-focalnet-rubert-distil"

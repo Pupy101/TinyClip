@@ -21,12 +21,12 @@ trainer:
 
 count_steps: 3_000
 batch_size: 1_000
-image_pretrained: apple/mobilevit-xx-small # apple/mobilevit-x-small
+image_pretrained: microsoft/focalnet-tiny
 text_pretrained: cointegrated/rubert-tiny2
 embedding_dim: 128
 
 seed: 0xFEED
 
-tags: ["mobilevit-xx-small", "rubert-tiny"]
+tags: ["focalnet-tiny", "rubert-tiny"]
 
-task_name: "train-mobilevit-rubert"
+task_name: "train-focalnet-rubert"

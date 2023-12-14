@@ -20,13 +20,13 @@ trainer:
   max_epochs: 60
 
 count_steps: 3_000
-batch_size: 1_000
-image_pretrained: apple/mobilevit-xx-small # apple/mobilevit-x-small
+batch_size: 800
+image_pretrained: microsoft/swinv2-tiny-patch4-window8-256 # microsoft/swinv2-tiny-patch4-window16-256
 text_pretrained: cointegrated/rubert-tiny2
 embedding_dim: 128
 
 seed: 0xFEED
 
-tags: ["mobilevit-xx-small", "rubert-tiny"]
+tags: ["swinv2-tiny", "rubert-tiny"]
 
-task_name: "train-mobilevit-rubert"
+task_name: "train-swinv2-rubert"

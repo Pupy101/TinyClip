@@ -27,6 +27,6 @@ embedding_dim: 128
 
 seed: 0xFEED
 
-tags: ["convext-tiny", "rubert-tiny"]
+tags: ["swin-tiny", "rubert-tiny"]
 
 task_name: "train-swin-rubert"
